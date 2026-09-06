@@ -31,8 +31,9 @@ globalThis.NineCandidate = (()=>{
   if(questions.length!==9 || questions.some(r=>!Array.isArray(r)||r.length!==2||r.some(v=>!Number.isFinite(v))||r[0]>r[1]))throw Error('Enter a valid range for all nine preferences.');
   if(questions.some((r,j)=>r[0]<0 || (j===1&&r[1]>10) || ([2,3,4,5,7,8].includes(j)&&r[1]>100)))throw Error('A preference is outside its allowed scale.');
   const {a,rows,radius}=ctx,known=questions.map(r=>r!==null),ranges=questions.map((r,j)=>r?.map(v=>questionValue(a,j,v)));
-  const eligible=rows.filter(r=>r.question_values[0]>=questions[0][0] && r.question_values[0]<=questions[0][1]);
+  const eligible=rows.filter(r=>r.question_values[0]>=questions[0][0] && r.question_values[0]<=questions[0][1] && r.question_values[6]>=questions[6][0]);
   if(!eligible.length)return {suggestion:null,supported:0,total:128,known:known.filter(Boolean).length};
+  ranges[6]=[questionValue(a,6,questions[6][0]),Math.max(...eligible.map(r=>r.input[6]))];
   const groups=new Map();let supported=0;
   for(let n=1;n<=128;n++){
    const input=ranges.map((r,j)=>r?r[0]+(r[1]-r[0])*halton(n,[2,3,5,7,11,13,17,19,23][j]):a.preprocessing.means[j]);
@@ -53,9 +54,45 @@ globalThis.NineCandidate = (()=>{
   const sorted=[...groups.values()].sort((a,b)=>b.votes-a.votes),best=sorted[0];
   if(!best)return {suggestion:null,supported,total:128,known:known.filter(Boolean).length};
   const agreement=best.votes/supported;
+  const points=sorted.flatMap(group=>group.points);
+  const profilePoint=[0,1].map(j=>quantile(points.map(p=>p[j]),.5));
   // Require a clear majority across the admitted ranges and observed contexts.
   return {suggestion:agreement>=.55?{...best,agreement,point:[0,1].map(j=>quantile(best.points.map(p=>p[j]),.5))}:null,
-          ambiguous:agreement<.55,supported,total:128,known:known.filter(Boolean).length};
+          profilePoint,ambiguous:agreement<.55,supported,total:128,known:known.filter(Boolean).length};
  }
- return {forward,predict,prepare,questionValue,suggest,normalize,quantile};
+
+ // Search only inside the user's ranges. Never relax a stated limit to force a match.
+ function adjustment(ctx,original){
+  const initial=suggest(ctx,original);if(initial.suggestion)return null;
+  const copy=q=>q.map(r=>[...r]),cache=new Map();let evaluations=0;
+  const assess=q=>{const key=JSON.stringify(q);if(!cache.has(key)){evaluations++;cache.set(key,suggest(ctx,q));}return cache.get(key);};
+  const changes=q=>q.flatMap((r,j)=>r[0]===original[j][0]&&r[1]===original[j][1]?[]:[{field:j,before:[...original[j]],after:[...r]}]);
+  const cost=q=>changes(q).reduce((sum,c)=>sum+1-(c.after[1]-c.after[0])/(c.before[1]-c.before[0]||1),0);
+  const acceptable=r=>r.suggestion&&r.supported/r.total>=.25;
+  let best=null;
+  const consider=q=>{const result=assess(q);if(!acceptable(result))return;const proposal={ranges:copy(q),result,changes:changes(q),cost:cost(q)};
+   if(!best||proposal.changes.length<best.changes.length||(proposal.changes.length===best.changes.length&&proposal.cost<best.cost))best=proposal;};
+  for(let j=0;j<9;j++){
+   if(j===6)continue;
+   const [lo,hi]=original[j];if(lo===hi)continue;const mid=Math.floor((lo+hi)/2);
+   for(const range of [...[.125,.25,.5,.75,.875].flatMap(f=>{const cut=Math.round(lo+(hi-lo)*f);return [[lo,cut],[cut,hi]];}),[mid,mid],[lo,lo],[hi,hi]]){const q=copy(original);q[j]=range;consider(q);}
+  }
+  if(!best){
+   const anchors=ctx.rows.filter(r=>r.question_values[0]>=original[0][0]&&r.question_values[0]<=original[0][1]&&r.question_values[6]>=original[6][0]).map(row=>{
+    const q=row.question_values.map((raw,j)=>{
+     if(j===6)return [...original[6]];
+     let v=raw;if(j===1)v=raw*10;
+     if([2,4,5,7].includes(j)){const values=ctx.rows.map(r=>r.input[j]).sort((a,b)=>a-b);v=100*values.indexOf(row.input[j])/(values.length-1);}
+     v=Math.max(original[j][0],Math.min(original[j][1],Math.round(v)));return [v,v];
+    });return q;
+   });
+   for(const q of anchors.slice(0,24)){
+    if(!acceptable(assess(q)))continue;
+    for(let j=0;j<9;j++){const trial=copy(q);trial[j]=[...original[j]];if(acceptable(assess(trial)))q[j]=trial[j];}
+    consider(q);if(best&&best.changes.length<=2)break;
+   }
+  }
+  return best?{...best,evaluations}:null;
+ }
+ return {forward,predict,prepare,questionValue,suggest,adjustment,normalize,quantile};
 })();

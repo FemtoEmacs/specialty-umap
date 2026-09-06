@@ -149,3 +149,30 @@ No Python scripts or runtime dependencies are used. Node is only needed for the
 JavaScript regression suite. The browser uses the existing D3 CDN dependency;
 questionnaire answers remain local and are neither transmitted nor stored.
 The older five-feature scripts/model are retained as historical baselines.
+
+## Proposed input adjustments
+
+When the submitted ranges do not produce a cluster, the page searches for a
+supported narrowing and displays an original/proposed table with the resulting
+cluster. Inputs remain unchanged until **Apply proposed ranges** is clicked;
+**Restore original ranges** undoes it. Applying also displays the approximate marker.
+
+The deterministic bounded search tries one-field interval cuts first, favoring
+fewer changed fields and then less proportional narrowing. If none succeeds, it
+tries up to 24 observed profile anchors clipped to the original ranges, restoring
+original intervals where possible. Proposals must pass the existing cluster
+majority rule and have at least 25% sampled support. No limits are widened, no
+unsupported cluster is fabricated, and the search does not guarantee a globally
+minimal adjustment. A proposal is a model-based what-if, not evidence that the
+candidate should change their preferences. The system reports when no tested
+narrowing yields a supported result.
+
+### Salary is a minimum, not a preferred interval
+
+The salary question now has one visible input: minimum acceptable annual salary,
+in thousands of US dollars. A value of 260 means 260k or more, with no upper limit.
+The internal compatibility range extends to the highest eligible salary observed
+in the atlas. Supporting records must meet the entered minimum. A minimum above
+all observed salaries produces an unsupported result rather than being clamped
+down. Proposed adjustments never raise or otherwise change the salary minimum.
+This supersedes the salary-range description above.

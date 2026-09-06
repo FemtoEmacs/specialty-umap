@@ -38,3 +38,38 @@ assert.equal(context.nineQuestions().length,9);
 elements.get('#nine-1-0').value='3';assert.equal(context.nineQuestions()[1][0],3);
 elements.get('#nine-8-0').value='';assert.throws(()=>context.nineQuestions());
 console.log('PASS: all nine fields required, 18 whole-number bounds, procedure 0–10, private practice 0–100, missing workplace context rejected.');
+
+const screenshotRanges=[[1,6],[0,10],[0,60],[40,80],[0,80],[30,100],[260,988],[0,100],[20,80]];
+const screenshotResult=NineCandidate.suggest(ctx,screenshotRanges);
+assert.equal(screenshotResult.ambiguous,true);assert.equal(screenshotResult.suggestion,null);
+assert.equal(screenshotResult.profilePoint.length,2);assert.ok(screenshotResult.profilePoint.every(Number.isFinite));
+assert.equal(NineCandidate.suggest(ctx,[[0,0],...screenshotRanges.slice(1)]).profilePoint,undefined);
+console.log('PASS: screenshot profile has an approximate position without a forced cluster; unsupported profiles have no fabricated marker.');
+const beforeAdjustment=JSON.stringify(screenshotRanges);
+const proposal=NineCandidate.adjustment(ctx,screenshotRanges);
+assert.ok(proposal&&proposal.result.suggestion);assert.ok(proposal.result.supported/proposal.result.total>=.25);
+assert.equal(JSON.stringify(screenshotRanges),beforeAdjustment);
+assert.equal(proposal.changes.length,1);
+proposal.ranges.forEach((r,j)=>{assert.ok(r[0]>=screenshotRanges[j][0]&&r[1]<=screenshotRanges[j][1]);assert.ok(r.every(Number.isInteger));});
+assert.deepEqual(proposal.result,NineCandidate.suggest(ctx,proposal.ranges));
+assert.equal(NineCandidate.adjustment(ctx,proposal.ranges),null);
+assert.equal(NineCandidate.adjustment(ctx,[[0,0],...screenshotRanges.slice(1)]),null);
+// Exercise preview, explicit apply, and restore through the form callbacks.
+Element.prototype.style={};
+context.familySelect={value:''};context.select={value:''};context.views=[{field:'cluster_name',group:'Clusters'}];context.populateProperties=()=>{};
+screenshotRanges.forEach((r,j)=>r.forEach((v,b)=>elements.get(`#nine-${j}-${b}`).value=String(v)));
+elements.get('#candidate-form').listeners.submit({preventDefault(){}});
+assert.equal(JSON.stringify(context.nineQuestions()),beforeAdjustment);
+const descendants=e=>[e,...(e.children||[]).flatMap(descendants)];
+const apply=descendants(elements.get('#candidate-results')).find(e=>e.textContent==='Apply proposed ranges');assert.ok(apply);apply.listeners.click();
+assert.equal(JSON.stringify(context.nineQuestions()),JSON.stringify(proposal.ranges));assert.equal(elements.get('#candidate-markers').checked,true);
+assert.ok(vm.runInContext('nineResult.suggestion',context));
+const restore=descendants(elements.get('#candidate-results')).find(e=>e.textContent==='Restore original ranges');assert.ok(restore);restore.listeners.click();
+assert.equal(JSON.stringify(context.nineQuestions()),beforeAdjustment);
+console.log('PASS: adjustment search preserves limits, yields verified result, previews changes, applies explicitly and restores original inputs.');
+const salaryExact=screenshotRanges.map(r=>[...r]);salaryExact[6]=[260,260];
+assert.deepEqual(NineCandidate.suggest(ctx,salaryExact),NineCandidate.suggest(ctx,screenshotRanges));
+const salaryProposal=NineCandidate.adjustment(ctx,salaryExact);
+if(salaryProposal){assert.deepEqual(salaryProposal.ranges[6],[260,260]);assert.ok(salaryProposal.changes.every(c=>c.field!==6));}
+const unavailableSalary=screenshotRanges.map(r=>[...r]);unavailableSalary[6]=[2000,2000];assert.equal(NineCandidate.suggest(ctx,unavailableSalary).suggestion,null);
+console.log('PASS: salary is a minimum only, higher salaries remain eligible, adjustment never raises the minimum, and unsupported salary thresholds abstain.');
