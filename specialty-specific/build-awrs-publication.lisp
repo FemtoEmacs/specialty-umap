@@ -25,11 +25,11 @@
  (when (and (probe-file (candidate-path "index.html"))
             (not (probe-file (candidate-path "output/index-before-awrs-publication.html"))))
   (publication-write "output/index-before-awrs-publication.html" (file-text (candidate-path "index.html"))))
- (loop for name in '("index.html" "awrs-smc.html")
-       for title in '("Reference UMAP" "AWRS-SMC — best sampled alternative")
-       for entry in (list (list :recipe reference :metrics (getf result :best)) alternative)
-       for selected-panels in (list (subseq panels 0 2) (subseq panels 2 4))
-       for is-reference = t then nil do
+ (loop for name in '("awrs-smc.html")
+       for title in '("AWRS-SMC — best sampled alternative")
+       for entry in (list alternative)
+       for selected-panels in (list (subseq panels 2 4))
+       for is-reference = nil do
   (publication-write name
    (with-output-to-string (out)
     (format out "<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>~A — Specialty UMAP</title>~A</head><body>~A<h1>~A</h1>" title style *publication-nav* title)
@@ -39,6 +39,10 @@
      (format out "<table><tr><th>Combined quality</th><th>Neighbor recall</th><th>Two-seed stability</th><th>Coverage</th></tr><tr><td>~,4F</td><td>~,1F%</td><td>~,4F</td><td>~,1F%</td></tr></table>" (getf m :quality) (* 100 (getf m :neighbor-recall)) (getf m :seed-cluster-stability) (* 100 (getf m :coverage))))
     (format out "<div class='maps'>~{~A~}</div><p>Colors and cluster numbers are local to each panel. Matching colors across panels do not imply matching memberships.</p><h2>How this result was calculated</h2><p>AWRS-SMC used 24 particles over 12 steps to sample nine feature weights (0.5, 1 or 2), neighborhood size (10, 15 or 20), and minimum distance (0.05, 0.1 or 0.3). Every recipe was evaluated with Common Lisp UMAP at seeds 20260905 and 20260917, followed by DBSCAN clustering.</p><p>Quality = 0.6 × neighborhood recall + 0.3 × cluster stability across seeds + 0.1 × coverage. Recipes with fewer than two clusters receive zero quality. These are map-structure measures, not candidate-classification accuracy. The small score difference does not establish a robust advantage from two seeds alone.</p>" selected-panels)
     (format out "<details><summary>Exact recipe</summary><p>Weights in order: training duration, procedures, science, private practice, competitiveness, clinical intensity, salary, physician availability, female representation. Final two values: neighborhood size and minimum distance.</p><code>~A</code></details><p>Generated from the saved AWRS-SMC search. <a href='ref-awrs-smc-compar.html'>See the full comparison and all tested recipes.</a></p></body></html>" (awrs-html-escape (getf entry :recipe))))))
+ ;; The landing page is the full interactive atlas and candidate questionnaire.
+ (publication-write "index.html"
+  (replace-marker (file-text (candidate-path "output/specialty-candidate.html"))
+   "<main id=\"app\">" (concatenate 'string "<main id=\"app\">" *publication-nav*)))
  (publication-write "ref-awrs-smc-compar.html"
   (replace-marker page "<h1>" (concatenate 'string *publication-nav* "<h1>")))
  (format t "Prepared index.html, awrs-smc.html and ref-awrs-smc-compar.html.~%"))
