@@ -29,7 +29,8 @@
        for title in '("AWRS-SMC — best sampled alternative")
        for entry in (list alternative)
        for selected-panels in (list (subseq panels 2 4))
-       for is-reference = nil do
+       for is-reference = nil
+       when (not (probe-file (candidate-path "smc-trainer/candidate-awrs-deployed.sexp"))) do
   (publication-write name
    (with-output-to-string (out)
     (format out "<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>~A — Specialty UMAP</title>~A</head><body>~A<h1>~A</h1>" title style *publication-nav* title)
