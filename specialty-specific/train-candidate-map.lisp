@@ -1,0 +1,101 @@
+;;;; Five-input regression into the existing atlas. No UMAP optimization.
+(defparameter *candidate-directory* (make-pathname :name nil :type nil :defaults *load-truename*))
+(defparameter *candidate-root* (merge-pathnames "../" *candidate-directory*))
+(defparameter *build-umap-run-main* nil)
+(defparameter *parametric-train-run-main* nil)
+(load (merge-pathnames "build-umap.lisp" *candidate-root*))
+(load (merge-pathnames "smc-trainer/train.lisp" *candidate-root*))
+(defvar *candidate-run-main* t)
+(defparameter *candidate-fields*
+  '(:representative-total-gme-years :procedure-intensity
+    :nih-grants-per-active-physician-per-year :private-practice-percent :candidates-per-position))
+(defun candidate-path (name) (merge-pathnames name *candidate-root*))
+(defun candidate-write (path form)
+  (ensure-directories-exist path)
+  (with-open-file (s path :direction :output :if-exists :supersede)
+    (let ((*print-readably* t) (*print-pretty* t)) (write form :stream s))))
+(defun candidate-features (row)
+  (loop for key in *candidate-fields* for i from 0
+        for v = (getf row key) collect
+        (progn (unless (and (realp v) (>= v 0)) (error "Invalid feature ~A" key))
+               (if (= i 2) (log (+ 1d0 v)) (coerce v 'double-float)))))
+(defun candidate-stats (vectors)
+  (let* ((n (length vectors))
+         (means (loop for j below (length (first vectors)) collect
+                  (/ (loop for v in vectors sum (nth j v)) n))))
+    (list :means means :scales
+          (loop for j below (length means) for m in means collect
+            (let ((s (sqrt (/ (loop for v in vectors sum (expt (- (nth j v) m) 2)) n))))
+              (if (< s 1d-10) 1d0 s))))))
+(defun candidate-normalize (v stats)
+  (mapcar (lambda (x m s) (/ (- x m) s)) v (getf stats :means) (getf stats :scales)))
+(defun candidate-denormalize (v stats)
+  (mapcar (lambda (x m s) (+ m (* x s))) v (getf stats :means) (getf stats :scales)))
+(defun candidate-distance (a b) (loop for x in a for y in b sum (expt (- x y) 2)))
+(defun candidate-observations ()
+  (let ((*read-default-float-format* (quote double-float)))
+  (let ((raw (read-csv-records (candidate-path "examples/specialty-points-raw.csv"))))
+    (loop for row in (read-csv-records (candidate-path "output/specialty-umap-embedding.csv"))
+          for source = (find (getf row :specialty-id) raw :test #'equal
+                             :key (lambda (r) (getf r :specialty-id))) collect
+      (progn (unless source (error "Missing raw record"))
+        (list :id (getf row :specialty-id) :input (candidate-features source)
+              :target (list (getf row :x) (getf row :y))
+              :cluster (princ-to-string (getf row :cluster-id)) :name (getf row :cluster-name)))))))
+(defun candidate-split (observations)
+  ;; Identical five-input vectors stay together; deterministic, no random leakage.
+  (let ((groups (remove-duplicates (mapcar (lambda (r) (getf r :input)) observations) :test #'equal)))
+    (loop for row in observations for group = (position (getf row :input) groups :test #'equal)
+          collect (append row (list :group group :split (if (zerop (mod group 5)) :validation :train))))))
+(defun candidate-corpus (rows input-stats target-stats)
+  (list :format :parametric-umap-corpus :version 1
+        :annotation-source :fixed-current-atlas :record-count (length rows)
+        :feature-schema (mapcar (lambda (f) (list :field f)) *candidate-fields*)
+        :preprocessing input-stats :target-preprocessing target-stats
+        :split-policy (list :kind :identical-input-grouped :validation-every 5)
+        :records (loop for row in rows collect
+                   (list :id (getf row :id) :group (getf row :group) :split (getf row :split)
+                         :input (candidate-normalize (getf row :input) input-stats)
+                         :target (candidate-normalize (getf row :target) target-stats)))))
+(defun candidate-evaluate (model rows input-stats target-stats)
+  (let* ((training (remove :validation rows :key (lambda (r) (getf r :split))))
+         (held (remove :train rows :key (lambda (r) (getf r :split))))
+         (sse 0d0) (baseline 0d0) (correct 0) (recall 0d0)
+         (center (getf target-stats :means)))
+    (dolist (row held)
+      (let* ((prediction (candidate-denormalize
+                          (parametric-predict model (candidate-normalize (getf row :input) input-stats)) target-stats))
+             (neighbors (sort (copy-list training) #'< :key
+                         (lambda (r) (candidate-distance prediction (getf r :target)))))
+             (actual-neighbors (subseq (sort (copy-list training) #'< :key
+                                 (lambda (r) (candidate-distance (getf row :target) (getf r :target)))) 0 5)))
+        (incf sse (candidate-distance prediction (getf row :target)))
+        (incf baseline (candidate-distance center (getf row :target)))
+        (when (equal (getf row :cluster) (getf (first neighbors) :cluster)) (incf correct))
+        (incf recall (/ (length (intersection (subseq neighbors 0 5) actual-neighbors)) 5d0))))
+    (list :held-out-count (length held) :training-count (length training)
+          :coordinate-rmse (sqrt (/ sse (* 2 (length held))))
+          :mean-baseline-rmse (sqrt (/ baseline (* 2 (length held))))
+          :nearest-cluster-agreement (/ correct (float (length held) 1d0))
+          :neighborhood-recall-at-5 (/ recall (length held))
+          :scope "Held-out input groups within a fixed atlas; not career-outcome validation.")))
+(defun candidate-train (&optional (epochs 100))
+  (let* ((rows (candidate-split (candidate-observations)))
+         (training (remove :validation rows :key (lambda (r) (getf r :split))))
+         (inputs (candidate-stats (mapcar (lambda (r) (getf r :input)) training)))
+         (targets (candidate-stats (mapcar (lambda (r) (getf r :target)) training)))
+         (corpus (candidate-path "smc-trainer/corpus/candidate-fixed-atlas.sexp")))
+    (candidate-write corpus (candidate-corpus rows inputs targets))
+    (multiple-value-bind (model report)
+        (train-parametric-source (parametric-open-corpus-source corpus) :epochs epochs)
+      (let* ((evaluation (candidate-evaluate model rows inputs targets))
+             (artifact (list :format :candidate-fixed-atlas :version 1 :model (parametric-model-form model)
+                             :preprocessing inputs :target-preprocessing targets
+                             :feature-schema (mapcar #'symbol-name *candidate-fields*)
+                             :observations rows :training-report report :evaluation evaluation
+                             :source-atlas "output/specialty-umap-embedding.csv")))
+        (candidate-write (candidate-path "smc-trainer/candidate-fixed-atlas-model.sexp") artifact)
+        (candidate-write (candidate-path "output/candidate-evaluation.sexp") evaluation)
+        (format t "~S~%" evaluation)
+        artifact))))
+(when *candidate-run-main* (candidate-train))

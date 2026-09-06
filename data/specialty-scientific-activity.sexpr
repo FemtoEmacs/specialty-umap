@@ -1,0 +1,382 @@
+(:format :specialty-scientific-activity-features :version 1 :country :united-states :study-period (2011 2020)
+ :point-key :id :umap-features
+ ((:id :nih-grants-per-active-physician-per-year :source-field :grants-per-active-physician-per-year
+   :recommended-transform :log10-then-z-score :reason "Award frequency normalized for specialty workforce size.")
+  (:id :nih-funding-per-active-physician-per-year :source-field
+   :funding-thousand-usd-per-active-physician-per-year :unit :thousand-2011-usd-per-active-physician-per-year
+   :recommended-transform :log10-then-z-score :reason "Inflation- and workforce-normalized NIH award intensity."))
+ :retained-but-not-umap-features
+ ((:id :funding-rank :reason :ordinal-and-redundant) (:id :grants :reason :confounded-by-specialty-workforce-size)
+  (:id :grant-share-percent :reason :compositional-and-size-confounded)
+  (:id :funding-million-usd :reason :confounded-by-specialty-workforce-size)
+  (:id :funding-share-percent :reason :compositional-and-size-confounded)
+  (:id :mean-active-physicians :reason :denominator-not-scientific-output))
+ :sources
+ ((:id :shah-nih-specialties-2022 :citation
+   "Shah et al. Does NIH funding differ between medical specialties? BMJ Open. 2022;12:e058191." :doi
+   "10.1136/bmjopen-2021-058191" :url "https://pmc.ncbi.nlm.nih.gov/articles/PMC9809243/" :table 1 :role
+   :quantitative-backbone)
+  (:id :glass-akirtava-investigators-2017 :url
+   "https://www.appliedclinicaltrialsonline.com/view/what-actual-number-active-us-clinical-trial-investigators"
+   :role :context-only :reason
+   "Industry-sponsored investigator counts cover 2015-2016 and only the ten most reported specialties; no common workforce denominator in the article.")
+  (:id :califf-clinicaltrials-2012 :citation
+   "Califf et al. Characteristics of Clinical Trials Registered in ClinicalTrials.gov, 2007-2010. JAMA. 2012;307:1838-1847."
+   :doi "10.1001/jama.2012.3424" :url "https://jamanetwork.com/journals/jama/fullarticle/1150093" :role
+   :context-only :reason "Trial counts are therapeutic-area measures, not physician-specialty measures.")
+  (:id :zwierzyna-trials-2018 :citation
+   "Zwierzyna et al. Clinical trial design and dissemination. BMJ. 2018;361:k2130." :url
+   "https://pmc.ncbi.nlm.nih.gov/articles/PMC5989153/" :role :context-only :reason
+   "Seven MeSH-derived disease areas and drug/biologic trials cannot cover the specialty point universe without category error.")
+  (:id :keswani-surgeon-scientists-2022 :citation
+   "Keswani et al. NIH Funding for Surgeon-Scientists in the US: What Is the Current Status? Ann Surg. 2022." :url
+   "https://pmc.ncbi.nlm.nih.gov/articles/PMC9376791/" :role :refinement-candidate :reason
+   "Useful surgical subspecialty evidence, but a 2020 active-PI snapshot is not directly mergeable with the 2011-2020 annual per-physician backbone.")
+  (:id :westafer-k-grants-2024 :citation
+   "Westafer et al. K Grant Funding to Internal Medicine Specialties. J Gen Intern Med. 2024." :url
+   "https://pmc.ncbi.nlm.nih.gov/articles/PMC10853154/" :role :refinement-candidate :reason
+   "Adds internal-medicine K08/K23 detail for 2015-2022 but measures only early-career awards and uses an academic-faculty denominator.")
+  (:id :karsy-journal-networks-2018 :citation
+   "Karsy et al. The Impact of Specialization in Journal Networks and Scholarship. World Neurosurg. 2018." :doi
+   "10.1016/j.wneu.2018.08.075" :url "https://pubmed.ncbi.nlm.nih.gov/30144595/" :role :context-only :reason
+   "Journal-level citation metrics and journal coverage differ by field and are not physician-level research output."))
+ :method-notes
+ ("Scientific activity is multidimensional; this first common matrix operationalizes only NIH award frequency and NIH funding intensity."
+  "The source categorizes grants by NIH department name, not necessarily by a principal investigator's clinical board certification."
+  "Only awarded grants were available, so these values do not measure application success rates."
+  "Non-physician investigators can hold grants assigned to clinical departments."
+  "Subspecialty donor mappings are hypotheses for a first UMAP and must remain visible during sensitivity analysis."
+  "Do not combine the two enabled measures into a hand-weighted scalar before feature scaling.")
+ :nih-specialty-benchmarks
+ ((:id :pathology :paper-label "Pathology" :funding-rank 1 :grants 14946 :grant-share-percent 8.1
+   :grants-per-active-physician-per-year 0.112 :funding-million-usd 6366.7 :funding-share-percent 7.6
+   :mean-active-physicians 13311 :funding-thousand-usd-per-active-physician-per-year 47.8)
+  (:id :neurology :paper-label "Neurology" :funding-rank 2 :grants 12448 :grant-share-percent 6.8
+   :grants-per-active-physician-per-year 0.092 :funding-million-usd 6001.6 :funding-share-percent 7.2
+   :mean-active-physicians 13539 :funding-thousand-usd-per-active-physician-per-year 44.3)
+  (:id :internal-medicine :paper-label "Internal medicine/medicine" :funding-rank 3 :grants 72205
+   :grant-share-percent 39.2 :grants-per-active-physician-per-year 0.063 :funding-million-usd 36022.6
+   :funding-share-percent 43.2 :mean-active-physicians 114639 :funding-thousand-usd-per-active-physician-per-year
+   31.4)
+  (:id :psychiatry :paper-label "Psychiatry" :funding-rank 4 :grants 19029 :grant-share-percent 10.3
+   :grants-per-active-physician-per-year 0.05 :funding-million-usd 8267.6 :funding-share-percent 9.9
+   :mean-active-physicians 38089 :funding-thousand-usd-per-active-physician-per-year 21.7)
+  (:id :neurological-surgery :paper-label "Neurosurgery" :funding-rank 5 :grants 2956 :grant-share-percent 1.6
+   :grants-per-active-physician-per-year 0.055 :funding-million-usd 1111.6 :funding-share-percent 1.3
+   :mean-active-physicians 5410 :funding-thousand-usd-per-active-physician-per-year 20.5)
+  (:id :pediatrics :paper-label "Paediatrics" :funding-rank 6 :grants 17422 :grant-share-percent 9.4
+   :grants-per-active-physician-per-year 0.03 :funding-million-usd 7896.5 :funding-share-percent 9.5
+   :mean-active-physicians 57967 :funding-thousand-usd-per-active-physician-per-year 13.6)
+  (:id :ophthalmology :paper-label "Ophthalmology" :funding-rank 7 :grants 5957 :grant-share-percent 3.2
+   :grants-per-active-physician-per-year 0.032 :funding-million-usd 2380.8 :funding-share-percent 2.9
+   :mean-active-physicians 18684 :funding-thousand-usd-per-active-physician-per-year 12.7)
+  (:id :general-surgery :paper-label "Surgery" :funding-rank 8 :grants 8171 :grant-share-percent 4.4
+   :grants-per-active-physician-per-year 0.032 :funding-million-usd 3212.5 :funding-share-percent 3.9
+   :mean-active-physicians 25378 :funding-thousand-usd-per-active-physician-per-year 12.7)
+  (:id :otolaryngology :paper-label "Otolaryngology" :funding-rank 9 :grants 3198 :grant-share-percent 1.7
+   :grants-per-active-physician-per-year 0.034 :funding-million-usd 1102.3 :funding-share-percent 1.3
+   :mean-active-physicians 9485 :funding-thousand-usd-per-active-physician-per-year 11.6)
+  (:id :radiation-diagnostic-oncology :paper-label "Radiation-diagnostic/oncology" :funding-rank 10 :grants 9562
+   :grant-share-percent 5.2 :grants-per-active-physician-per-year 0.025 :funding-million-usd 3999.4
+   :funding-share-percent 4.8 :mean-active-physicians 38702 :funding-thousand-usd-per-active-physician-per-year
+   10.3)
+  (:id :dermatology :paper-label "Dermatology" :funding-rank 11 :grants 2270 :grant-share-percent 1.2
+   :grants-per-active-physician-per-year 0.019 :funding-million-usd 764.5 :funding-share-percent 0.9
+   :mean-active-physicians 11803 :funding-thousand-usd-per-active-physician-per-year 6.5)
+  (:id :urology :paper-label "Urology" :funding-rank 12 :grants 1474 :grant-share-percent 0.8
+   :grants-per-active-physician-per-year 0.015 :funding-million-usd 572.7 :funding-share-percent 0.7
+   :mean-active-physicians 9922 :funding-thousand-usd-per-active-physician-per-year 5.8)
+  (:id :obstetrics-gynecology :paper-label "Obstetrics and gynaecology" :funding-rank 13 :grants 4343
+   :grant-share-percent 2.4 :grants-per-active-physician-per-year 0.01 :funding-million-usd 1697.8
+   :funding-share-percent 2.0 :mean-active-physicians 41552 :funding-thousand-usd-per-active-physician-per-year
+   4.1)
+  (:id :physical-medicine-rehabilitation :paper-label "Physical medicine and rehabilitation" :funding-rank 14
+   :grants 1124 :grant-share-percent 0.6 :grants-per-active-physician-per-year 0.012 :funding-million-usd 357.9
+   :funding-share-percent 0.4 :mean-active-physicians 9220 :funding-thousand-usd-per-active-physician-per-year
+   3.9)
+  (:id :orthopaedic-surgery :paper-label "Orthopaedics" :funding-rank 15 :grants 2218 :grant-share-percent 1.2
+   :grants-per-active-physician-per-year 0.012 :funding-million-usd 750.2 :funding-share-percent 0.9
+   :mean-active-physicians 19222 :funding-thousand-usd-per-active-physician-per-year 3.9)
+  (:id :anesthesiology :paper-label "Anaesthesiology" :funding-rank 16 :grants 3770 :grant-share-percent 2.0
+   :grants-per-active-physician-per-year 0.0091 :funding-million-usd 1434.7 :funding-share-percent 1.7
+   :mean-active-physicians 41391 :funding-thousand-usd-per-active-physician-per-year 3.5)
+  (:id :emergency-medicine :paper-label "Emergency medicine" :funding-rank 17 :grants 1258 :grant-share-percent
+   0.7 :grants-per-active-physician-per-year 0.0031 :funding-million-usd 550.2 :funding-share-percent 0.7
+   :mean-active-physicians 40395 :funding-thousand-usd-per-active-physician-per-year 1.4)
+  (:id :family-medicine :paper-label "Family medicine" :funding-rank 18 :grants 2015 :grant-share-percent 1.1
+   :grants-per-active-physician-per-year 0.0018 :funding-million-usd 848.5 :funding-share-percent 1.0
+   :mean-active-physicians 112396 :funding-thousand-usd-per-active-physician-per-year 0.8)
+  (:id :plastic-surgery :paper-label "Plastic surgery" :funding-rank 19 :grants 16 :grant-share-percent 0.0
+   :grants-per-active-physician-per-year 2.3e-4 :funding-million-usd 4.6 :funding-share-percent 0.0
+   :mean-active-physicians 7079 :funding-thousand-usd-per-active-physician-per-year 0.1))
+ :specialties
+ ((:id :allergy-and-immunology :name "Allergy and Immunology" :nih-benchmark-id :internal-medicine :match
+   :nearest-available :imputed-p t)
+  (:id :anesthesiology :name "Anesthesiology" :nih-benchmark-id :anesthesiology :match :direct :imputed-p nil)
+  (:id :colon-and-rectal-surgery :name "Colon and Rectal Surgery" :nih-benchmark-id :general-surgery :match
+   :nearest-available :imputed-p t)
+  (:id :dermatology :name "Dermatology" :nih-benchmark-id :dermatology :match :direct :imputed-p nil)
+  (:id :emergency-medicine :name "Emergency Medicine" :nih-benchmark-id :emergency-medicine :match :direct
+   :imputed-p nil)
+  (:id :family-medicine :name "Family Medicine" :nih-benchmark-id :family-medicine :match :direct :imputed-p nil)
+  (:id :internal-medicine :name "Internal Medicine" :nih-benchmark-id :internal-medicine :match :direct :imputed-p
+   nil)
+  (:id :medical-genetics-and-genomics :name "Medical Genetics and Genomics" :nih-benchmark-id :pathology :match
+   :nearest-available :imputed-p t)
+  (:id :clinical-biochemical-genetics :name "Clinical Biochemical Genetics" :nih-benchmark-id :pathology :match
+   :nearest-available :imputed-p t)
+  (:id :laboratory-genetics-and-genomics :name "Laboratory Genetics and Genomics" :nih-benchmark-id :pathology
+   :match :nearest-available :imputed-p t)
+  (:id :neurological-surgery :name "Neurological Surgery" :nih-benchmark-id :neurological-surgery :match :direct
+   :imputed-p nil)
+  (:id :neurology :name "Neurology" :nih-benchmark-id :urology :match :nearest-available :imputed-p t)
+  (:id :child-neurology :name "Child Neurology" :nih-benchmark-id :urology :match :nearest-available :imputed-p t)
+  (:id :nuclear-medicine :name "Nuclear Medicine" :nih-benchmark-id :radiation-diagnostic-oncology :match
+   :nearest-available :imputed-p t)
+  (:id :obstetrics-and-gynecology :name "Obstetrics and Gynecology" :nih-benchmark-id :obstetrics-gynecology
+   :match :direct-name-crosswalk :imputed-p nil)
+  (:id :ophthalmology :name "Ophthalmology" :nih-benchmark-id :ophthalmology :match :direct :imputed-p nil)
+  (:id :orthopaedic-surgery :name "Orthopaedic Surgery" :nih-benchmark-id :orthopaedic-surgery :match :direct
+   :imputed-p nil)
+  (:id :osteopathic-neuromusculoskeletal-medicine :name "Osteopathic Neuromusculoskeletal Medicine"
+   :nih-benchmark-id :physical-medicine-rehabilitation :match :nearest-available :imputed-p t)
+  (:id :otolaryngology-head-and-neck-surgery :name "Otolaryngology - Head and Neck Surgery" :nih-benchmark-id
+   :otolaryngology :match :direct-name-crosswalk :imputed-p nil)
+  (:id :pathology-anatomic-and-clinical :name "Pathology - Anatomic and Clinical" :nih-benchmark-id :pathology
+   :match :direct-name-crosswalk :imputed-p nil)
+  (:id :pediatrics :name "Pediatrics" :nih-benchmark-id :pediatrics :match :direct :imputed-p nil)
+  (:id :physical-medicine-and-rehabilitation :name "Physical Medicine and Rehabilitation" :nih-benchmark-id
+   :physical-medicine-rehabilitation :match :direct-name-crosswalk :imputed-p nil)
+  (:id :plastic-surgery :name "Plastic Surgery" :nih-benchmark-id :plastic-surgery :match :direct :imputed-p nil)
+  (:id :plastic-surgery-integrated :name "Plastic Surgery - Integrated" :nih-benchmark-id :plastic-surgery :match
+   :nearest-available :imputed-p t)
+  (:id :public-health-and-general-preventive-medicine :name "Public Health and General Preventive Medicine"
+   :nih-benchmark-id :family-medicine :match :nearest-available :imputed-p t)
+  (:id :aerospace-medicine :name "Aerospace Medicine" :nih-benchmark-id :family-medicine :match :nearest-available
+   :imputed-p t)
+  (:id :occupational-and-environmental-medicine :name "Occupational and Environmental Medicine" :nih-benchmark-id
+   :family-medicine :match :nearest-available :imputed-p t)
+  (:id :psychiatry :name "Psychiatry" :nih-benchmark-id :psychiatry :match :direct :imputed-p nil)
+  (:id :radiation-oncology :name "Radiation Oncology" :nih-benchmark-id :radiation-diagnostic-oncology :match
+   :component-of-combined-category :imputed-p t)
+  (:id :diagnostic-radiology :name "Diagnostic Radiology" :nih-benchmark-id :radiation-diagnostic-oncology :match
+   :component-of-combined-category :imputed-p t)
+  (:id :interventional-radiology-independent :name "Interventional Radiology - Independent" :nih-benchmark-id
+   :radiation-diagnostic-oncology :match :nearest-available :imputed-p t)
+  (:id :interventional-radiology-integrated :name "Interventional Radiology - Integrated" :nih-benchmark-id
+   :radiation-diagnostic-oncology :match :nearest-available :imputed-p t)
+  (:id :general-surgery :name "General Surgery" :nih-benchmark-id :general-surgery :match :direct :imputed-p nil)
+  (:id :vascular-surgery-integrated :name "Vascular Surgery - Integrated" :nih-benchmark-id :general-surgery
+   :match :nearest-available :imputed-p t)
+  (:id :thoracic-surgery-independent :name "Thoracic Surgery - Independent" :nih-benchmark-id :general-surgery
+   :match :nearest-available :imputed-p t)
+  (:id :thoracic-surgery-integrated :name "Thoracic Surgery - Integrated" :nih-benchmark-id :general-surgery
+   :match :nearest-available :imputed-p t)
+  (:id :urology :name "Urology" :nih-benchmark-id :urology :match :direct :imputed-p nil)
+  (:id :internal-medicine-pediatrics :name "Internal Medicine/Pediatrics" :nih-benchmark-id :pediatrics :match
+   :nearest-available :imputed-p t)
+  (:id :adult-cardiothoracic-anesthesiology :name "Adult Cardiothoracic Anesthesiology" :nih-benchmark-id
+   :anesthesiology :match :nearest-available :imputed-p t)
+  (:id :anesthesiology-critical-care-medicine :name "Anesthesiology Critical Care Medicine" :nih-benchmark-id
+   :anesthesiology :match :nearest-available :imputed-p t)
+  (:id :obstetric-anesthesiology :name "Obstetric Anesthesiology" :nih-benchmark-id :anesthesiology :match
+   :nearest-available :imputed-p t)
+  (:id :pain-medicine :name "Pain Medicine" :nih-benchmark-id :physical-medicine-rehabilitation :match
+   :nearest-available :imputed-p t)
+  (:id :pediatric-anesthesiology :name "Pediatric Anesthesiology" :nih-benchmark-id :anesthesiology :match
+   :nearest-available :imputed-p t)
+  (:id :pediatric-cardiac-anesthesiology :name "Pediatric Cardiac Anesthesiology" :nih-benchmark-id
+   :anesthesiology :match :nearest-available :imputed-p t)
+  (:id :regional-anesthesiology-and-acute-pain-medicine :name "Regional Anesthesiology and Acute Pain Medicine"
+   :nih-benchmark-id :anesthesiology :match :nearest-available :imputed-p t)
+  (:id :dermatopathology :name "Dermatopathology" :nih-benchmark-id :pathology :match :nearest-available
+   :imputed-p t)
+  (:id :micrographic-surgery-and-dermatologic-oncology :name "Micrographic Surgery and Dermatologic Oncology"
+   :nih-benchmark-id :dermatology :match :nearest-available :imputed-p t)
+  (:id :pediatric-dermatology :name "Pediatric Dermatology" :nih-benchmark-id :pediatrics :match
+   :nearest-available :imputed-p t)
+  (:id :emergency-medical-services :name "Emergency Medical Services" :nih-benchmark-id :internal-medicine :match
+   :nearest-available :imputed-p t)
+  (:id :medical-toxicology :name "Medical Toxicology" :nih-benchmark-id :internal-medicine :match
+   :nearest-available :imputed-p t)
+  (:id :pediatric-emergency-medicine :name "Pediatric Emergency Medicine" :nih-benchmark-id :pediatrics :match
+   :nearest-available :imputed-p t)
+  (:id :sports-medicine :name "Sports Medicine" :nih-benchmark-id :orthopaedic-surgery :match :nearest-available
+   :imputed-p t)
+  (:id :undersea-and-hyperbaric-medicine :name "Undersea and Hyperbaric Medicine" :nih-benchmark-id
+   :internal-medicine :match :nearest-available :imputed-p t)
+  (:id :clinical-informatics :name "Clinical Informatics" :nih-benchmark-id :internal-medicine :match
+   :nearest-available :imputed-p t)
+  (:id :geriatric-medicine :name "Geriatric Medicine" :nih-benchmark-id :internal-medicine :match
+   :nearest-available :imputed-p t)
+  (:id :hospice-and-palliative-medicine :name "Hospice and Palliative Medicine" :nih-benchmark-id
+   :internal-medicine :match :nearest-available :imputed-p t)
+  (:id :cardiology :name "Cardiology (Cardiovascular Disease)" :nih-benchmark-id :internal-medicine :match
+   :nearest-available :imputed-p t)
+  (:id :adult-congenital-heart-disease :name "Adult Congenital Heart Disease" :nih-benchmark-id :internal-medicine
+   :match :nearest-available :imputed-p t)
+  (:id :advanced-heart-failure-and-transplant-cardiology :name "Advanced Heart Failure and Transplant Cardiology"
+   :nih-benchmark-id :internal-medicine :match :nearest-available :imputed-p t)
+  (:id :cardiac-electrophysiology :name "Clinical Cardiac Electrophysiology" :nih-benchmark-id :internal-medicine
+   :match :nearest-available :imputed-p t)
+  (:id :interventional-cardiology :name "Interventional Cardiology" :nih-benchmark-id :internal-medicine :match
+   :nearest-available :imputed-p t)
+  (:id :internal-medicine-critical-care-medicine :name "Internal Medicine Critical Care Medicine"
+   :nih-benchmark-id :internal-medicine :match :nearest-available :imputed-p t)
+  (:id :endocrinology-diabetes-and-metabolism :name "Endocrinology, Diabetes, and Metabolism" :nih-benchmark-id
+   :internal-medicine :match :nearest-available :imputed-p t)
+  (:id :gastroenterology :name "Gastroenterology" :nih-benchmark-id :internal-medicine :match :nearest-available
+   :imputed-p t)
+  (:id :hematology-and-medical-oncology :name "Hematology and Medical Oncology" :nih-benchmark-id
+   :internal-medicine :match :nearest-available :imputed-p t)
+  (:id :infectious-disease :name "Infectious Disease" :nih-benchmark-id :internal-medicine :match
+   :nearest-available :imputed-p t)
+  (:id :interventional-pulmonology :name "Interventional Pulmonology" :nih-benchmark-id :internal-medicine :match
+   :nearest-available :imputed-p t)
+  (:id :medical-oncology :name "Medical Oncology" :nih-benchmark-id :internal-medicine :match :nearest-available
+   :imputed-p t)
+  (:id :nephrology :name "Nephrology" :nih-benchmark-id :internal-medicine :match :nearest-available :imputed-p t)
+  (:id :pulmonary-disease :name "Pulmonary Disease" :nih-benchmark-id :internal-medicine :match :nearest-available
+   :imputed-p t)
+  (:id :pulmonary-disease-and-critical-care-medicine :name "Pulmonary Disease and Critical Care Medicine"
+   :nih-benchmark-id :internal-medicine :match :nearest-available :imputed-p t)
+  (:id :rheumatology :name "Rheumatology" :nih-benchmark-id :internal-medicine :match :nearest-available
+   :imputed-p t)
+  (:id :sleep-medicine :name "Sleep Medicine" :nih-benchmark-id :internal-medicine :match :nearest-available
+   :imputed-p t)
+  (:id :transplant-hepatology :name "Transplant Hepatology" :nih-benchmark-id :internal-medicine :match
+   :nearest-available :imputed-p t)
+  (:id :medical-biochemical-genetics :name "Medical Biochemical Genetics" :nih-benchmark-id :pathology :match
+   :nearest-available :imputed-p t)
+  (:id :molecular-genetic-pathology :name "Molecular Genetic Pathology" :nih-benchmark-id :pathology :match
+   :nearest-available :imputed-p t)
+  (:id :clinical-neurophysiology :name "Clinical Neurophysiology" :nih-benchmark-id :neurology :match
+   :nearest-available :imputed-p t)
+  (:id :epilepsy :name "Epilepsy" :nih-benchmark-id :neurology :match :nearest-available :imputed-p t)
+  (:id :neurocritical-care :name "Neurocritical Care" :nih-benchmark-id :neurology :match :nearest-available
+   :imputed-p t)
+  (:id :neurodevelopmental-disabilities :name "Neurodevelopmental Disabilities" :nih-benchmark-id :neurology
+   :match :nearest-available :imputed-p t)
+  (:id :neuromuscular-medicine :name "Neuromuscular Medicine" :nih-benchmark-id :neurology :match
+   :nearest-available :imputed-p t)
+  (:id :vascular-neurology :name "Vascular Neurology" :nih-benchmark-id :urology :match :nearest-available
+   :imputed-p t)
+  (:id :complex-family-planning :name "Complex Family Planning" :nih-benchmark-id :obstetrics-gynecology :match
+   :nearest-available :imputed-p t)
+  (:id :gynecologic-oncology :name "Gynecologic Oncology" :nih-benchmark-id :obstetrics-gynecology :match
+   :nearest-available :imputed-p t)
+  (:id :maternal-fetal-medicine :name "Maternal-Fetal Medicine" :nih-benchmark-id :obstetrics-gynecology :match
+   :nearest-available :imputed-p t)
+  (:id :reproductive-endocrinology-and-infertility :name "Reproductive Endocrinology and Infertility"
+   :nih-benchmark-id :obstetrics-gynecology :match :nearest-available :imputed-p t)
+  (:id :urogynecology-and-reconstructive-pelvic-surgery :name "Urogynecology and Reconstructive Pelvic Surgery"
+   :nih-benchmark-id :obstetrics-gynecology :match :nearest-available :imputed-p t)
+  (:id :ophthalmic-plastic-and-reconstructive-surgery :name "Ophthalmic Plastic and Reconstructive Surgery"
+   :nih-benchmark-id :ophthalmology :match :nearest-available :imputed-p t)
+  (:id :adult-reconstructive-orthopaedics :name "Adult Reconstructive Orthopaedics" :nih-benchmark-id
+   :orthopaedic-surgery :match :nearest-available :imputed-p t)
+  (:id :foot-and-ankle-orthopaedics :name "Foot and Ankle Orthopaedics" :nih-benchmark-id :orthopaedic-surgery
+   :match :nearest-available :imputed-p t)
+  (:id :hand-surgery :name "Hand Surgery" :nih-benchmark-id :orthopaedic-surgery :match :nearest-available
+   :imputed-p t)
+  (:id :musculoskeletal-oncology :name "Musculoskeletal Oncology" :nih-benchmark-id :orthopaedic-surgery :match
+   :nearest-available :imputed-p t)
+  (:id :orthopaedic-sports-medicine :name "Orthopaedic Sports Medicine" :nih-benchmark-id :orthopaedic-surgery
+   :match :nearest-available :imputed-p t)
+  (:id :orthopaedic-surgery-of-the-spine :name "Orthopaedic Surgery of the Spine" :nih-benchmark-id
+   :orthopaedic-surgery :match :nearest-available :imputed-p t)
+  (:id :orthopaedic-trauma :name "Orthopaedic Trauma" :nih-benchmark-id :orthopaedic-surgery :match
+   :nearest-available :imputed-p t)
+  (:id :pediatric-orthopaedics :name "Pediatric Orthopaedics" :nih-benchmark-id :orthopaedic-surgery :match
+   :nearest-available :imputed-p t)
+  (:id :neurotology :name "Neurotology" :nih-benchmark-id :otolaryngology :match :nearest-available :imputed-p t)
+  (:id :pediatric-otolaryngology :name "Pediatric Otolaryngology" :nih-benchmark-id :otolaryngology :match
+   :nearest-available :imputed-p t)
+  (:id :blood-banking-transfusion-medicine :name "Blood Banking/Transfusion Medicine" :nih-benchmark-id :pathology
+   :match :nearest-available :imputed-p t)
+  (:id :chemical-pathology :name "Chemical Pathology" :nih-benchmark-id :pathology :match :nearest-available
+   :imputed-p t)
+  (:id :cytopathology :name "Cytopathology" :nih-benchmark-id :pathology :match :nearest-available :imputed-p t)
+  (:id :forensic-pathology :name "Forensic Pathology" :nih-benchmark-id :pathology :match :nearest-available
+   :imputed-p t)
+  (:id :hematopathology :name "Hematopathology" :nih-benchmark-id :pathology :match :nearest-available :imputed-p
+   t)
+  (:id :medical-microbiology :name "Medical Microbiology" :nih-benchmark-id :pathology :match :nearest-available
+   :imputed-p t)
+  (:id :neuropathology :name "Neuropathology" :nih-benchmark-id :pathology :match :nearest-available :imputed-p t)
+  (:id :pediatric-pathology :name "Pediatric Pathology" :nih-benchmark-id :pathology :match :nearest-available
+   :imputed-p t)
+  (:id :selective-pathology :name "Selective Pathology" :nih-benchmark-id :pathology :match :nearest-available
+   :imputed-p t)
+  (:id :adolescent-medicine :name "Adolescent Medicine" :nih-benchmark-id :pediatrics :match :nearest-available
+   :imputed-p t)
+  (:id :child-abuse-pediatrics :name "Child Abuse Pediatrics" :nih-benchmark-id :pediatrics :match
+   :nearest-available :imputed-p t)
+  (:id :developmental-behavioral-pediatrics :name "Developmental-Behavioral Pediatrics" :nih-benchmark-id
+   :pediatrics :match :nearest-available :imputed-p t)
+  (:id :neonatal-perinatal-medicine :name "Neonatal-Perinatal Medicine" :nih-benchmark-id :pediatrics :match
+   :nearest-available :imputed-p t)
+  (:id :pediatric-cardiology :name "Pediatric Cardiology" :nih-benchmark-id :pediatrics :match :nearest-available
+   :imputed-p t)
+  (:id :pediatric-critical-care-medicine :name "Pediatric Critical Care Medicine" :nih-benchmark-id :pediatrics
+   :match :nearest-available :imputed-p t)
+  (:id :pediatric-endocrinology :name "Pediatric Endocrinology" :nih-benchmark-id :pediatrics :match
+   :nearest-available :imputed-p t)
+  (:id :pediatric-gastroenterology :name "Pediatric Gastroenterology" :nih-benchmark-id :pediatrics :match
+   :nearest-available :imputed-p t)
+  (:id :pediatric-hematology-oncology :name "Pediatric Hematology/Oncology" :nih-benchmark-id :pediatrics :match
+   :nearest-available :imputed-p t)
+  (:id :pediatric-infectious-diseases :name "Pediatric Infectious Diseases" :nih-benchmark-id :pediatrics :match
+   :nearest-available :imputed-p t)
+  (:id :pediatric-nephrology :name "Pediatric Nephrology" :nih-benchmark-id :pediatrics :match :nearest-available
+   :imputed-p t)
+  (:id :pediatric-pulmonology :name "Pediatric Pulmonology" :nih-benchmark-id :pediatrics :match
+   :nearest-available :imputed-p t)
+  (:id :pediatric-rheumatology :name "Pediatric Rheumatology" :nih-benchmark-id :pediatrics :match
+   :nearest-available :imputed-p t)
+  (:id :pediatric-transplant-hepatology :name "Pediatric Transplant Hepatology" :nih-benchmark-id :pediatrics
+   :match :nearest-available :imputed-p t)
+  (:id :pediatric-hospital-medicine :name "Pediatric Hospital Medicine" :nih-benchmark-id :pediatrics :match
+   :nearest-available :imputed-p t)
+  (:id :brain-injury-medicine :name "Brain Injury Medicine" :nih-benchmark-id :physical-medicine-rehabilitation
+   :match :nearest-available :imputed-p t)
+  (:id :spinal-cord-injury-medicine :name "Spinal Cord Injury Medicine" :nih-benchmark-id
+   :physical-medicine-rehabilitation :match :nearest-available :imputed-p t)
+  (:id :pediatric-rehabilitation-medicine :name "Pediatric Rehabilitation Medicine" :nih-benchmark-id
+   :physical-medicine-rehabilitation :match :nearest-available :imputed-p t)
+  (:id :craniofacial-surgery :name "Craniofacial Surgery" :nih-benchmark-id :plastic-surgery :match
+   :nearest-available :imputed-p t)
+  (:id :addiction-medicine :name "Addiction Medicine" :nih-benchmark-id :psychiatry :match :nearest-available
+   :imputed-p t)
+  (:id :addiction-psychiatry :name "Addiction Psychiatry" :nih-benchmark-id :psychiatry :match :nearest-available
+   :imputed-p t)
+  (:id :child-and-adolescent-psychiatry :name "Child and Adolescent Psychiatry" :nih-benchmark-id :psychiatry
+   :match :nearest-available :imputed-p t)
+  (:id :forensic-psychiatry :name "Forensic Psychiatry" :nih-benchmark-id :psychiatry :match :nearest-available
+   :imputed-p t)
+  (:id :geriatric-psychiatry :name "Geriatric Psychiatry" :nih-benchmark-id :psychiatry :match :nearest-available
+   :imputed-p t)
+  (:id :consultation-liaison-psychiatry :name "Consultation-Liaison Psychiatry" :nih-benchmark-id :psychiatry
+   :match :nearest-available :imputed-p t)
+  (:id :abdominal-radiology :name "Abdominal Radiology" :nih-benchmark-id :radiation-diagnostic-oncology :match
+   :nearest-available :imputed-p t)
+  (:id :musculoskeletal-radiology :name "Musculoskeletal Radiology" :nih-benchmark-id
+   :radiation-diagnostic-oncology :match :nearest-available :imputed-p t)
+  (:id :neuroradiology :name "Neuroradiology" :nih-benchmark-id :radiation-diagnostic-oncology :match
+   :nearest-available :imputed-p t)
+  (:id :nuclear-radiology :name "Nuclear Radiology" :nih-benchmark-id :radiation-diagnostic-oncology :match
+   :nearest-available :imputed-p t)
+  (:id :pediatric-radiology :name "Pediatric Radiology" :nih-benchmark-id :radiation-diagnostic-oncology :match
+   :nearest-available :imputed-p t)
+  (:id :complex-general-surgical-oncology :name "Complex General Surgical Oncology" :nih-benchmark-id
+   :general-surgery :match :nearest-available :imputed-p t)
+  (:id :pediatric-surgery :name "Pediatric Surgery" :nih-benchmark-id :pediatrics :match :nearest-available
+   :imputed-p t)
+  (:id :surgical-critical-care :name "Surgical Critical Care" :nih-benchmark-id :general-surgery :match
+   :nearest-available :imputed-p t)
+  (:id :vascular-surgery-independent :name "Vascular Surgery - Independent" :nih-benchmark-id :general-surgery
+   :match :nearest-available :imputed-p t)
+  (:id :congenital-cardiac-surgery :name "Congenital Cardiac Surgery" :nih-benchmark-id :general-surgery :match
+   :nearest-available :imputed-p t)
+  (:id :pediatric-urology :name "Pediatric Urology" :nih-benchmark-id :urology :match :nearest-available
+   :imputed-p t)))

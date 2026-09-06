@@ -1,0 +1,52 @@
+(:format :umap-problem :version 1
+ :title "Medical specialties: nine-feature UMAP"
+ :data
+ (:file "output/specialty-umap-embedding.csv" :id-field :specialty-id
+  :embedding
+  ((:field :training-duration-z) (:field :clinical-work-intensity-z)
+   (:field :scientific-activity-index-z) (:field :private-practice-z)
+   (:field :salary-z) (:field :workforce-burden-z)
+   (:field :competitiveness-z) (:field :female-representation-z)
+   (:field :procedure-intensity-z))
+  :validation
+  (:required-fields
+   (:specialty-id :specialty-name :x :y :cluster-id :cluster-name :representative-total-gme-years :average-total-compensation-usd :female-resident-percent :procedure-profile :procedure-intensity :training-duration-z
+    :clinical-work-intensity-z :scientific-activity-index-z
+    :private-practice-z :salary-z :workforce-burden-z :competitiveness-z
+    :female-representation-z :procedure-intensity-z)
+   :unique-fields (:specialty-id)))
+ :preprocessing (:standardize false)
+ :umap
+ (:neighbors 15 :minimum-distance 0.10 :epochs 750 :seed 20260905
+  :coordinate-mode :preserved :density-surface true :density-bandwidth 30
+  :density-thresholds 10 :density-opacity 0.22 :density-color "data"
+  :density-color-bands 7 :point-radius 5
+  :highlight-ring-field :female-resident-percent
+  :highlight-ring-threshold 50 :highlight-ring-radius 8
+  :highlight-ring-color "#111827" :highlight-ring-width 1.5
+  :highlight-ring-opacity 0.9 :highlight-ring-label "Female majority (>50%)"
+  :continuous-color-scale "quantile-turbo"
+  :feature-contours nil)
+ :views
+ ((:field :cluster-name :label "Named two-dimensional clusters" :group "Clusters" :type "categorical")
+  (:field :representative-total-gme-years :label "Residency/fellowship duration (years)" :group "Training" :type "continuous" :format "years")
+  (:field :competitiveness-z :label "NRMP competitiveness (z)" :group "Training" :type "continuous")
+  (:field :female-resident-percent :label "Female residents (%)" :group "Workforce" :type "continuous")
+  (:field :procedure-profile :label "Procedural practice profile" :group "Practice" :type "categorical")
+  (:field :clinical-work-intensity-z :label "Clinical work intensity (z)" :group "Practice" :type "continuous")
+  (:field :private-practice-z :label "Private-practice proportion (z)" :group "Practice" :type "continuous")
+  (:field :average-total-compensation-usd :label "Salary" :group "Economics" :type "continuous" :format "usd-k")
+  (:field :workforce-burden-z :label "Physicians per patient burden (z)" :group "Economics" :type "continuous")
+  (:field :scientific-activity-index-z :label "Scientific activity (z)" :group "Science" :type "continuous"))
+ :tooltip
+ ((:field :specialty-name :label "Specialty")
+  (:field :cluster-name :label "2D cluster")
+  (:field :representative-total-gme-years :label "Residency/fellowship duration" :format "years")
+  (:field :clinical-work-intensity-z :label "Clinical work intensity z")
+  (:field :scientific-activity-index-z :label "Scientific activity z")
+  (:field :private-practice-z :label "Private practice z")
+  (:field :average-total-compensation-usd :label "Salary" :format "usd-k")
+  (:field :female-resident-percent :label "Female residents" :format "percent")
+  (:field :procedure-profile :label "Procedural profile")
+  (:field :workforce-burden-z :label "Physicians per burden z")
+  (:field :competitiveness-z :label "Competitiveness z")))

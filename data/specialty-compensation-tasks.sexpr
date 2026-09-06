@@ -1,0 +1,552 @@
+(:format :specialty-compensation-and-task-features :version 1 :country :united-states :benchmark-as-of
+ "2025-07-01" :cms-calendar-year 2025 :point-key :id :features
+ ((:id :median-annual-wrvus :unit :wrvu-per-year :source :marit-linkedin)
+  (:id :median-compensation-usd-per-wrvu :unit :usd-per-wrvu :source :marit-linkedin)
+  (:id :anchor-task-work-rvu :unit :wrvu-per-service :source :cms-pfs-relative-value-file)
+  (:id :anchor-task-intra-service-minutes :unit :minutes :source :cms-physician-work-time)
+  (:id :anchor-task-total-physician-minutes :unit :minutes :source :cms-physician-work-time)
+  (:id :anchor-task-wrvu-per-intra-service-hour :unit :wrvu-per-hour :derivation
+   "work-rvu * 60 / intra-service-minutes")
+  (:id :anchor-task-wrvu-per-total-physician-hour :unit :wrvu-per-hour :derivation
+   "work-rvu * 60 / total-physician-minutes"))
+ :sources
+ ((:id :marit-linkedin :publisher "Marit Health" :title
+   "2025 wRVUs and $ per wRVU Benchmarks by Specialty: A Guide for Physicians" :url
+   "https://www.linkedin.com/pulse/2025-wrvus-per-wrvu-benchmarks-specialty-guide-physicians-dtyac/"
+   :retrieved "2026-09-05" :note
+   "Anonymized verified Marit salary contributions as of 2025-07-01; most values were read approximately from a chart.")
+  (:id :cms-pfs-relative-value-file :publisher "Centers for Medicare & Medicaid Services" :title
+   "2025 National Physician Fee Schedule Relative Value File, July release (RVU25C)" :url
+   "https://www.cms.gov/medicare/payment/fee-schedules/physician/pfs-relative-value-files/rvu25c" :file
+   "PPRRVU2025_Jul.csv" :sha256 "b7937472967288d5c4dcf43ecbc5d2d792e97d768c9f5ec9b1e88a99f3d0bbe7" :released
+   "2025-06-05" :retrieved "2026-09-05")
+  (:id :cms-physician-work-time :publisher "Centers for Medicare & Medicaid Services" :title
+   "CY 2025 PFS Final Rule Physician Work Time" :url
+   "https://www.cms.gov/files/zip/cy-2025-pfs-final-rule-physician-work-time.zip" :file
+   "CMS-1807-F_Work_Time_16OCT24_508.txt" :sha256
+   "83695668da326f10dfaf6936026529d59581e488527dd5390a6ec24d8b9fd312" :retrieved "2026-09-05"))
+ :method-notes
+ ("Annual wRVUs and compensation dollars per wRVU are distinct observed specialty benchmarks; neither is derived from the CPT anchor."
+  "A nearest-available value is an explicit imputation from one of the article's broad categories, not a measurement for that subspecialty."
+  "The representative task is an anchor for work intensity, not a claim about the specialty's complete case mix or realized hourly productivity."
+  "CMS total physician time can include pre-service, intra-service, immediate post-service, and additional global-period work; therefore both intra-service and total-time rates are retained."
+  "Anesthesia services use base/time units rather than ordinary physician work RVUs; anesthesiology points are conservatively mapped to the general-surgery anchor and marked imputed pending a dedicated anesthesia feature.")
+ :benchmarks
+ ((:id :psychiatry :article-label "Psychiatry" :annual-wrvus 4500 :usd-per-wrvu 58 :extraction :chart-read)
+  (:id :hematology-oncology :article-label "Hematology/Oncology" :annual-wrvus 5500 :usd-per-wrvu 90
+   :extraction :chart-read)
+  (:id :neurology :article-label "Neurology" :annual-wrvus 5400 :usd-per-wrvu 58 :extraction :chart-read)
+  (:id :physical-medicine-rehabilitation :article-label "Physical Medicine & Rehabilitation" :annual-wrvus
+   6000 :usd-per-wrvu 60 :extraction :chart-read)
+  (:id :endocrinology :article-label "Endocrinology" :annual-wrvus 5000 :usd-per-wrvu 53 :extraction
+   :chart-read)
+  (:id :internal-medicine :article-label "Internal Medicine" :annual-wrvus 5800 :usd-per-wrvu 52 :extraction
+   :chart-read)
+  (:id :pediatrics :article-label "Pediatrics" :annual-wrvus 4800 :usd-per-wrvu 48 :extraction :chart-read)
+  (:id :family-medicine :article-label "Family Medicine" :annual-wrvus 5700 :usd-per-wrvu 45 :extraction
+   :chart-read)
+  (:id :obstetrics-gynecology :article-label "Obstetrics/Gynecology" :annual-wrvus 7000 :usd-per-wrvu 52
+   :extraction :chart-read)
+  (:id :general-surgery :article-label "General Surgery" :annual-wrvus 7200 :usd-per-wrvu 62 :extraction
+   :chart-read)
+  (:id :otolaryngology :article-label "Otolaryngology" :annual-wrvus 7200 :usd-per-wrvu 65 :extraction
+   :chart-read)
+  (:id :urology :article-label "Urology" :annual-wrvus 8000 :usd-per-wrvu 60 :extraction :chart-read)
+  (:id :ophthalmology :article-label "Ophthalmology" :annual-wrvus 8200 :usd-per-wrvu 42 :extraction
+   :chart-read)
+  (:id :dermatology :article-label "Dermatology" :annual-wrvus 8700 :usd-per-wrvu 58 :extraction :chart-read)
+  (:id :gastroenterology :article-label "Gastroenterology" :annual-wrvus 9000 :usd-per-wrvu 66 :extraction
+   :chart-read)
+  (:id :orthopaedic-surgery :article-label "Orthopedics" :annual-wrvus 10000 :usd-per-wrvu 70 :extraction
+   :text-and-chart)
+  (:id :radiation-oncology :article-label "Radiation Oncology" :annual-wrvus 9500 :usd-per-wrvu 60
+   :extraction :chart-read)
+  (:id :cardiology :article-label "Cardiology" :annual-wrvus 9850 :usd-per-wrvu 60 :extraction
+   :text-and-chart)
+  (:id :neurological-surgery :article-label "Neurosurgery" :annual-wrvus 10000 :usd-per-wrvu 80 :extraction
+   :chart-read)
+  (:id :diagnostic-radiology :article-label "Radiology" :annual-wrvus 11950 :usd-per-wrvu 50 :extraction
+   :text-and-chart))
+ :task-anchors
+ ((:id :psychiatry :hcpcs "90834" :task "45-minute psychotherapy encounter" :work-rvu 2.45 :pre 5 :position 0
+   :scrub-wait 0 :intra 45 :immediate-post 10 :total 60 :wrvu-per-intra-service-hour 3.2667
+   :wrvu-per-total-physician-hour 2.45)
+  (:id :hematology-oncology :hcpcs "99215" :task "high-complexity established outpatient visit" :work-rvu 2.8
+   :pre 10 :position 0 :scrub-wait 0 :intra 45 :immediate-post 15 :total 70 :wrvu-per-intra-service-hour
+   3.7333 :wrvu-per-total-physician-hour 2.4)
+  (:id :medical-oncology :hcpcs "99215" :task "high-complexity established outpatient oncology visit"
+   :work-rvu 2.8 :pre 10 :position 0 :scrub-wait 0 :intra 45 :immediate-post 15 :total 70
+   :wrvu-per-intra-service-hour 3.7333 :wrvu-per-total-physician-hour 2.4)
+  (:id :neurology :hcpcs "99214" :task "moderate-complexity established outpatient visit" :work-rvu 1.92 :pre
+   7 :position 0 :scrub-wait 0 :intra 30 :immediate-post 10 :total 47 :wrvu-per-intra-service-hour 3.84
+   :wrvu-per-total-physician-hour 2.4511)
+  (:id :physical-medicine-rehabilitation :hcpcs "99214" :task
+   "moderate-complexity established outpatient visit" :work-rvu 1.92 :pre 7 :position 0 :scrub-wait 0 :intra
+   30 :immediate-post 10 :total 47 :wrvu-per-intra-service-hour 3.84 :wrvu-per-total-physician-hour 2.4511)
+  (:id :endocrinology :hcpcs "99214" :task "moderate-complexity established outpatient visit" :work-rvu 1.92
+   :pre 7 :position 0 :scrub-wait 0 :intra 30 :immediate-post 10 :total 47 :wrvu-per-intra-service-hour 3.84
+   :wrvu-per-total-physician-hour 2.4511)
+  (:id :internal-medicine :hcpcs "99214" :task "moderate-complexity established outpatient visit" :work-rvu
+   1.92 :pre 7 :position 0 :scrub-wait 0 :intra 30 :immediate-post 10 :total 47 :wrvu-per-intra-service-hour
+   3.84 :wrvu-per-total-physician-hour 2.4511)
+  (:id :pediatrics :hcpcs "99213" :task "low-complexity established outpatient visit" :work-rvu 1.3 :pre 5
+   :position 0 :scrub-wait 0 :intra 20 :immediate-post 5 :total 30 :wrvu-per-intra-service-hour 3.9
+   :wrvu-per-total-physician-hour 2.6)
+  (:id :family-medicine :hcpcs "99214" :task "moderate-complexity established outpatient visit" :work-rvu
+   1.92 :pre 7 :position 0 :scrub-wait 0 :intra 30 :immediate-post 10 :total 47 :wrvu-per-intra-service-hour
+   3.84 :wrvu-per-total-physician-hour 2.4511)
+  (:id :obstetrics-gynecology :hcpcs "58571" :task "total laparoscopic hysterectomy, 250 g or less" :work-rvu
+   15.0 :pre 33 :position 8 :scrub-wait 15 :intra 90 :immediate-post 30 :total 241
+   :wrvu-per-intra-service-hour 10.0 :wrvu-per-total-physician-hour 3.7344)
+  (:id :general-surgery :hcpcs "47562" :task "laparoscopic cholecystectomy" :work-rvu 10.47 :pre 40 :position
+   10 :scrub-wait 15 :intra 80 :immediate-post 25 :total 251 :wrvu-per-intra-service-hour 7.8525
+   :wrvu-per-total-physician-hour 2.5028)
+  (:id :otolaryngology :hcpcs "31575" :task "diagnostic flexible laryngoscopy" :work-rvu 0.94 :pre 8
+   :position 1 :scrub-wait 5 :intra 5 :immediate-post 5 :total 24 :wrvu-per-intra-service-hour 11.28
+   :wrvu-per-total-physician-hour 2.35)
+  (:id :urology :hcpcs "52601" :task "transurethral resection of prostate" :work-rvu 13.16 :pre 33 :position
+   8 :scrub-wait 10 :intra 75 :immediate-post 45 :total 236 :wrvu-per-intra-service-hour 10.528
+   :wrvu-per-total-physician-hour 3.3458)
+  (:id :ophthalmology :hcpcs "66984" :task "cataract extraction with intraocular lens" :work-rvu 7.35 :pre 13
+   :position 1 :scrub-wait 6 :intra 20 :immediate-post 5 :total 126 :wrvu-per-intra-service-hour 22.05
+   :wrvu-per-total-physician-hour 3.5)
+  (:id :dermatology :hcpcs "11102" :task "tangential biopsy of one skin lesion" :work-rvu 0.66 :pre 3
+   :position 2 :scrub-wait 2 :intra 6 :immediate-post 5 :total 18 :wrvu-per-intra-service-hour 6.6
+   :wrvu-per-total-physician-hour 2.2)
+  (:id :gastroenterology :hcpcs "43239" :task "upper GI endoscopy with biopsy" :work-rvu 2.39 :pre 13
+   :position 3 :scrub-wait 5 :intra 17 :immediate-post 12 :total 50 :wrvu-per-intra-service-hour 8.4353
+   :wrvu-per-total-physician-hour 2.868)
+  (:id :orthopaedic-surgery :hcpcs "27447" :task "total knee arthroplasty" :work-rvu 19.6 :pre 40 :position
+   15 :scrub-wait 15 :intra 97 :immediate-post 20 :total 374 :wrvu-per-intra-service-hour 12.1237
+   :wrvu-per-total-physician-hour 3.1444)
+  (:id :radiation-oncology :hcpcs "77427" :task "radiation treatment management, five fractions" :work-rvu
+   3.37 :pre 7 :position 0 :scrub-wait 0 :intra 70 :immediate-post 10 :total 101.39
+   :wrvu-per-intra-service-hour 2.8886 :wrvu-per-total-physician-hour 1.9943)
+  (:id :cardiology :hcpcs "93458" :task "left-heart catheterization and coronary angiography" :work-rvu 5.6
+   :pre 30 :position 3 :scrub-wait 5 :intra 45 :immediate-post 30 :total 113 :wrvu-per-intra-service-hour
+   7.4667 :wrvu-per-total-physician-hour 2.9735)
+  (:id :neurological-surgery :hcpcs "61510" :task "craniotomy for supratentorial brain tumor" :work-rvu 30.83
+   :pre 105 :position 0 :scrub-wait 0 :intra 200 :immediate-post 40 :total 635 :wrvu-per-intra-service-hour
+   9.249 :wrvu-per-total-physician-hour 2.9131)
+  (:id :diagnostic-radiology :hcpcs "74177" :task
+   "CT abdomen and pelvis with contrast, professional interpretation" :work-rvu 1.82 :pre 5 :position 0
+   :scrub-wait 0 :intra 25 :immediate-post 5 :total 35 :wrvu-per-intra-service-hour 4.368
+   :wrvu-per-total-physician-hour 3.12))
+ :specialties
+ ((:id :allergy-and-immunology :name "Allergy and Immunology" :benchmark-id :internal-medicine
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id :internal-medicine :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :anesthesiology :name "Anesthesiology" :benchmark-id :internal-medicine :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :internal-medicine :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :colon-and-rectal-surgery :name "Colon and Rectal Surgery" :benchmark-id :general-surgery
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id :general-surgery :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :dermatology :name "Dermatology" :benchmark-id :dermatology :benchmark-match :direct
+   :benchmark-imputed-p nil :task-anchor-id :dermatology :task-match :direct :task-imputed-p nil)
+  (:id :emergency-medicine :name "Emergency Medicine" :benchmark-id :internal-medicine :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :internal-medicine :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :family-medicine :name "Family Medicine" :benchmark-id :family-medicine :benchmark-match :direct
+   :benchmark-imputed-p nil :task-anchor-id :family-medicine :task-match :direct :task-imputed-p nil)
+  (:id :internal-medicine :name "Internal Medicine" :benchmark-id :internal-medicine :benchmark-match :direct
+   :benchmark-imputed-p nil :task-anchor-id :internal-medicine :task-match :direct :task-imputed-p nil)
+  (:id :medical-genetics-and-genomics :name "Medical Genetics and Genomics" :benchmark-id :internal-medicine
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id :internal-medicine :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :clinical-biochemical-genetics :name "Clinical Biochemical Genetics" :benchmark-id :internal-medicine
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id :internal-medicine :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :laboratory-genetics-and-genomics :name "Laboratory Genetics and Genomics" :benchmark-id
+   :internal-medicine :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id
+   :internal-medicine :task-match :nearest-available :task-imputed-p t)
+  (:id :neurological-surgery :name "Neurological Surgery" :benchmark-id :neurological-surgery
+   :benchmark-match :direct :benchmark-imputed-p nil :task-anchor-id :neurological-surgery :task-match
+   :direct :task-imputed-p nil)
+  (:id :neurology :name "Neurology" :benchmark-id :urology :benchmark-match :nearest-available
+   :benchmark-imputed-p t :task-anchor-id :urology :task-match :nearest-available :task-imputed-p t)
+  (:id :child-neurology :name "Child Neurology" :benchmark-id :urology :benchmark-match :nearest-available
+   :benchmark-imputed-p t :task-anchor-id :urology :task-match :nearest-available :task-imputed-p t)
+  (:id :nuclear-medicine :name "Nuclear Medicine" :benchmark-id :diagnostic-radiology :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :diagnostic-radiology :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :obstetrics-and-gynecology :name "Obstetrics and Gynecology" :benchmark-id :obstetrics-gynecology
+   :benchmark-match :direct :benchmark-imputed-p nil :task-anchor-id :obstetrics-gynecology :task-match
+   :direct :task-imputed-p nil)
+  (:id :ophthalmology :name "Ophthalmology" :benchmark-id :ophthalmology :benchmark-match :direct
+   :benchmark-imputed-p nil :task-anchor-id :ophthalmology :task-match :direct :task-imputed-p nil)
+  (:id :orthopaedic-surgery :name "Orthopaedic Surgery" :benchmark-id :orthopaedic-surgery :benchmark-match
+   :direct :benchmark-imputed-p nil :task-anchor-id :orthopaedic-surgery :task-match :direct :task-imputed-p
+   nil)
+  (:id :osteopathic-neuromusculoskeletal-medicine :name "Osteopathic Neuromusculoskeletal Medicine"
+   :benchmark-id :physical-medicine-rehabilitation :benchmark-match :nearest-available :benchmark-imputed-p t
+   :task-anchor-id :physical-medicine-rehabilitation :task-match :nearest-available :task-imputed-p t)
+  (:id :otolaryngology-head-and-neck-surgery :name "Otolaryngology - Head and Neck Surgery" :benchmark-id
+   :otolaryngology :benchmark-match :direct :benchmark-imputed-p nil :task-anchor-id :otolaryngology
+   :task-match :direct :task-imputed-p nil)
+  (:id :pathology-anatomic-and-clinical :name "Pathology - Anatomic and Clinical" :benchmark-id
+   :internal-medicine :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id
+   :internal-medicine :task-match :nearest-available :task-imputed-p t)
+  (:id :pediatrics :name "Pediatrics" :benchmark-id :pediatrics :benchmark-match :direct :benchmark-imputed-p
+   nil :task-anchor-id :pediatrics :task-match :direct :task-imputed-p nil)
+  (:id :physical-medicine-and-rehabilitation :name "Physical Medicine and Rehabilitation" :benchmark-id
+   :physical-medicine-rehabilitation :benchmark-match :direct :benchmark-imputed-p nil :task-anchor-id
+   :physical-medicine-rehabilitation :task-match :direct :task-imputed-p nil)
+  (:id :plastic-surgery :name "Plastic Surgery" :benchmark-id :general-surgery :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :general-surgery :task-match :nearest-available
+   :task-imputed-p t)
+  (:id :plastic-surgery-integrated :name "Plastic Surgery - Integrated" :benchmark-id :general-surgery
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id :general-surgery :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :public-health-and-general-preventive-medicine :name "Public Health and General Preventive Medicine"
+   :benchmark-id :family-medicine :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id
+   :family-medicine :task-match :nearest-available :task-imputed-p t)
+  (:id :aerospace-medicine :name "Aerospace Medicine" :benchmark-id :family-medicine :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :family-medicine :task-match :nearest-available
+   :task-imputed-p t)
+  (:id :occupational-and-environmental-medicine :name "Occupational and Environmental Medicine" :benchmark-id
+   :family-medicine :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id
+   :family-medicine :task-match :nearest-available :task-imputed-p t)
+  (:id :psychiatry :name "Psychiatry" :benchmark-id :psychiatry :benchmark-match :direct :benchmark-imputed-p
+   nil :task-anchor-id :psychiatry :task-match :direct :task-imputed-p nil)
+  (:id :radiation-oncology :name "Radiation Oncology" :benchmark-id :radiation-oncology :benchmark-match
+   :direct :benchmark-imputed-p nil :task-anchor-id :radiation-oncology :task-match :direct :task-imputed-p
+   nil)
+  (:id :diagnostic-radiology :name "Diagnostic Radiology" :benchmark-id :diagnostic-radiology
+   :benchmark-match :direct :benchmark-imputed-p nil :task-anchor-id :diagnostic-radiology :task-match
+   :direct :task-imputed-p nil)
+  (:id :interventional-radiology-independent :name "Interventional Radiology - Independent" :benchmark-id
+   :diagnostic-radiology :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id
+   :diagnostic-radiology :task-match :nearest-available :task-imputed-p t)
+  (:id :interventional-radiology-integrated :name "Interventional Radiology - Integrated" :benchmark-id
+   :diagnostic-radiology :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id
+   :diagnostic-radiology :task-match :nearest-available :task-imputed-p t)
+  (:id :general-surgery :name "General Surgery" :benchmark-id :general-surgery :benchmark-match :direct
+   :benchmark-imputed-p nil :task-anchor-id :general-surgery :task-match :direct :task-imputed-p nil)
+  (:id :vascular-surgery-integrated :name "Vascular Surgery - Integrated" :benchmark-id :general-surgery
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id :general-surgery :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :thoracic-surgery-independent :name "Thoracic Surgery - Independent" :benchmark-id :general-surgery
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id :general-surgery :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :thoracic-surgery-integrated :name "Thoracic Surgery - Integrated" :benchmark-id :general-surgery
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id :general-surgery :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :urology :name "Urology" :benchmark-id :urology :benchmark-match :direct :benchmark-imputed-p nil
+   :task-anchor-id :urology :task-match :direct :task-imputed-p nil)
+  (:id :internal-medicine-pediatrics :name "Internal Medicine/Pediatrics" :benchmark-id :pediatrics
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id :pediatrics :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :adult-cardiothoracic-anesthesiology :name "Adult Cardiothoracic Anesthesiology" :benchmark-id
+   :internal-medicine :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id
+   :internal-medicine :task-match :nearest-available :task-imputed-p t)
+  (:id :anesthesiology-critical-care-medicine :name "Anesthesiology Critical Care Medicine" :benchmark-id
+   :internal-medicine :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id
+   :internal-medicine :task-match :nearest-available :task-imputed-p t)
+  (:id :obstetric-anesthesiology :name "Obstetric Anesthesiology" :benchmark-id :obstetrics-gynecology
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id :obstetrics-gynecology
+   :task-match :nearest-available :task-imputed-p t)
+  (:id :pain-medicine :name "Pain Medicine" :benchmark-id :physical-medicine-rehabilitation :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :physical-medicine-rehabilitation :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :pediatric-anesthesiology :name "Pediatric Anesthesiology" :benchmark-id :pediatrics :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :pediatrics :task-match :nearest-available
+   :task-imputed-p t)
+  (:id :pediatric-cardiac-anesthesiology :name "Pediatric Cardiac Anesthesiology" :benchmark-id :pediatrics
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id :pediatrics :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :regional-anesthesiology-and-acute-pain-medicine :name
+   "Regional Anesthesiology and Acute Pain Medicine" :benchmark-id :physical-medicine-rehabilitation
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id
+   :physical-medicine-rehabilitation :task-match :nearest-available :task-imputed-p t)
+  (:id :dermatopathology :name "Dermatopathology" :benchmark-id :dermatology :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :dermatology :task-match :nearest-available
+   :task-imputed-p t)
+  (:id :micrographic-surgery-and-dermatologic-oncology :name "Micrographic Surgery and Dermatologic Oncology"
+   :benchmark-id :dermatology :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id
+   :dermatology :task-match :nearest-available :task-imputed-p t)
+  (:id :pediatric-dermatology :name "Pediatric Dermatology" :benchmark-id :dermatology :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :dermatology :task-match :nearest-available
+   :task-imputed-p t)
+  (:id :emergency-medical-services :name "Emergency Medical Services" :benchmark-id :internal-medicine
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id :internal-medicine :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :medical-toxicology :name "Medical Toxicology" :benchmark-id :internal-medicine :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :internal-medicine :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :pediatric-emergency-medicine :name "Pediatric Emergency Medicine" :benchmark-id :pediatrics
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id :pediatrics :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :sports-medicine :name "Sports Medicine" :benchmark-id :orthopaedic-surgery :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :orthopaedic-surgery :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :undersea-and-hyperbaric-medicine :name "Undersea and Hyperbaric Medicine" :benchmark-id
+   :internal-medicine :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id
+   :internal-medicine :task-match :nearest-available :task-imputed-p t)
+  (:id :clinical-informatics :name "Clinical Informatics" :benchmark-id :internal-medicine :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :internal-medicine :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :geriatric-medicine :name "Geriatric Medicine" :benchmark-id :internal-medicine :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :internal-medicine :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :hospice-and-palliative-medicine :name "Hospice and Palliative Medicine" :benchmark-id
+   :internal-medicine :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id
+   :internal-medicine :task-match :nearest-available :task-imputed-p t)
+  (:id :cardiology :name "Cardiology (Cardiovascular Disease)" :benchmark-id :cardiology :benchmark-match
+   :direct :benchmark-imputed-p nil :task-anchor-id :cardiology :task-match :direct :task-imputed-p nil)
+  (:id :adult-congenital-heart-disease :name "Adult Congenital Heart Disease" :benchmark-id :cardiology
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id :cardiology :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :advanced-heart-failure-and-transplant-cardiology :name
+   "Advanced Heart Failure and Transplant Cardiology" :benchmark-id :cardiology :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :cardiology :task-match :nearest-available
+   :task-imputed-p t)
+  (:id :cardiac-electrophysiology :name "Clinical Cardiac Electrophysiology" :benchmark-id :cardiology
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id :cardiology :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :interventional-cardiology :name "Interventional Cardiology" :benchmark-id :cardiology
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id :cardiology :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :internal-medicine-critical-care-medicine :name "Internal Medicine Critical Care Medicine"
+   :benchmark-id :internal-medicine :benchmark-match :nearest-available :benchmark-imputed-p t
+   :task-anchor-id :internal-medicine :task-match :nearest-available :task-imputed-p t)
+  (:id :endocrinology-diabetes-and-metabolism :name "Endocrinology, Diabetes, and Metabolism" :benchmark-id
+   :endocrinology :benchmark-match :direct :benchmark-imputed-p nil :task-anchor-id :endocrinology
+   :task-match :direct :task-imputed-p nil)
+  (:id :gastroenterology :name "Gastroenterology" :benchmark-id :gastroenterology :benchmark-match :direct
+   :benchmark-imputed-p nil :task-anchor-id :gastroenterology :task-match :direct :task-imputed-p nil)
+  (:id :hematology-and-medical-oncology :name "Hematology and Medical Oncology" :benchmark-id
+   :hematology-oncology :benchmark-match :direct :benchmark-imputed-p nil :task-anchor-id
+   :hematology-oncology :task-match :direct :task-imputed-p nil)
+  (:id :infectious-disease :name "Infectious Disease" :benchmark-id :internal-medicine :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :internal-medicine :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :interventional-pulmonology :name "Interventional Pulmonology" :benchmark-id :internal-medicine
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id :internal-medicine :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :medical-oncology :name "Medical Oncology" :benchmark-id :hematology-oncology :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :medical-oncology :task-match :direct
+   :task-imputed-p nil)
+  (:id :nephrology :name "Nephrology" :benchmark-id :internal-medicine :benchmark-match :nearest-available
+   :benchmark-imputed-p t :task-anchor-id :internal-medicine :task-match :nearest-available :task-imputed-p
+   t)
+  (:id :pulmonary-disease :name "Pulmonary Disease" :benchmark-id :internal-medicine :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :internal-medicine :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :pulmonary-disease-and-critical-care-medicine :name "Pulmonary Disease and Critical Care Medicine"
+   :benchmark-id :internal-medicine :benchmark-match :nearest-available :benchmark-imputed-p t
+   :task-anchor-id :internal-medicine :task-match :nearest-available :task-imputed-p t)
+  (:id :rheumatology :name "Rheumatology" :benchmark-id :internal-medicine :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :internal-medicine :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :sleep-medicine :name "Sleep Medicine" :benchmark-id :internal-medicine :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :internal-medicine :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :transplant-hepatology :name "Transplant Hepatology" :benchmark-id :gastroenterology :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :gastroenterology :task-match :nearest-available
+   :task-imputed-p t)
+  (:id :medical-biochemical-genetics :name "Medical Biochemical Genetics" :benchmark-id :internal-medicine
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id :internal-medicine :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :molecular-genetic-pathology :name "Molecular Genetic Pathology" :benchmark-id :internal-medicine
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id :internal-medicine :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :clinical-neurophysiology :name "Clinical Neurophysiology" :benchmark-id :neurology :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :neurology :task-match :nearest-available
+   :task-imputed-p t)
+  (:id :epilepsy :name "Epilepsy" :benchmark-id :neurology :benchmark-match :nearest-available
+   :benchmark-imputed-p t :task-anchor-id :neurology :task-match :nearest-available :task-imputed-p t)
+  (:id :neurocritical-care :name "Neurocritical Care" :benchmark-id :neurology :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :neurology :task-match :nearest-available
+   :task-imputed-p t)
+  (:id :neurodevelopmental-disabilities :name "Neurodevelopmental Disabilities" :benchmark-id :neurology
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id :neurology :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :neuromuscular-medicine :name "Neuromuscular Medicine" :benchmark-id :neurology :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :neurology :task-match :nearest-available
+   :task-imputed-p t)
+  (:id :vascular-neurology :name "Vascular Neurology" :benchmark-id :urology :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :urology :task-match :nearest-available
+   :task-imputed-p t)
+  (:id :complex-family-planning :name "Complex Family Planning" :benchmark-id :obstetrics-gynecology
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id :obstetrics-gynecology
+   :task-match :nearest-available :task-imputed-p t)
+  (:id :gynecologic-oncology :name "Gynecologic Oncology" :benchmark-id :obstetrics-gynecology
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id :obstetrics-gynecology
+   :task-match :nearest-available :task-imputed-p t)
+  (:id :maternal-fetal-medicine :name "Maternal-Fetal Medicine" :benchmark-id :obstetrics-gynecology
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id :obstetrics-gynecology
+   :task-match :nearest-available :task-imputed-p t)
+  (:id :reproductive-endocrinology-and-infertility :name "Reproductive Endocrinology and Infertility"
+   :benchmark-id :endocrinology :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id
+   :endocrinology :task-match :nearest-available :task-imputed-p t)
+  (:id :urogynecology-and-reconstructive-pelvic-surgery :name
+   "Urogynecology and Reconstructive Pelvic Surgery" :benchmark-id :obstetrics-gynecology :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :obstetrics-gynecology :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :ophthalmic-plastic-and-reconstructive-surgery :name "Ophthalmic Plastic and Reconstructive Surgery"
+   :benchmark-id :ophthalmology :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id
+   :ophthalmology :task-match :nearest-available :task-imputed-p t)
+  (:id :adult-reconstructive-orthopaedics :name "Adult Reconstructive Orthopaedics" :benchmark-id
+   :orthopaedic-surgery :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id
+   :orthopaedic-surgery :task-match :nearest-available :task-imputed-p t)
+  (:id :foot-and-ankle-orthopaedics :name "Foot and Ankle Orthopaedics" :benchmark-id :orthopaedic-surgery
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id :orthopaedic-surgery
+   :task-match :nearest-available :task-imputed-p t)
+  (:id :hand-surgery :name "Hand Surgery" :benchmark-id :orthopaedic-surgery :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :orthopaedic-surgery :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :musculoskeletal-oncology :name "Musculoskeletal Oncology" :benchmark-id :internal-medicine
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id :internal-medicine :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :orthopaedic-sports-medicine :name "Orthopaedic Sports Medicine" :benchmark-id :orthopaedic-surgery
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id :orthopaedic-surgery
+   :task-match :nearest-available :task-imputed-p t)
+  (:id :orthopaedic-surgery-of-the-spine :name "Orthopaedic Surgery of the Spine" :benchmark-id
+   :orthopaedic-surgery :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id
+   :orthopaedic-surgery :task-match :nearest-available :task-imputed-p t)
+  (:id :orthopaedic-trauma :name "Orthopaedic Trauma" :benchmark-id :orthopaedic-surgery :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :orthopaedic-surgery :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :pediatric-orthopaedics :name "Pediatric Orthopaedics" :benchmark-id :orthopaedic-surgery
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id :orthopaedic-surgery
+   :task-match :nearest-available :task-imputed-p t)
+  (:id :neurotology :name "Neurotology" :benchmark-id :otolaryngology :benchmark-match :nearest-available
+   :benchmark-imputed-p t :task-anchor-id :otolaryngology :task-match :nearest-available :task-imputed-p t)
+  (:id :pediatric-otolaryngology :name "Pediatric Otolaryngology" :benchmark-id :otolaryngology
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id :otolaryngology :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :blood-banking-transfusion-medicine :name "Blood Banking/Transfusion Medicine" :benchmark-id
+   :internal-medicine :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id
+   :internal-medicine :task-match :nearest-available :task-imputed-p t)
+  (:id :chemical-pathology :name "Chemical Pathology" :benchmark-id :internal-medicine :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :internal-medicine :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :cytopathology :name "Cytopathology" :benchmark-id :internal-medicine :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :internal-medicine :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :forensic-pathology :name "Forensic Pathology" :benchmark-id :internal-medicine :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :internal-medicine :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :hematopathology :name "Hematopathology" :benchmark-id :internal-medicine :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :internal-medicine :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :medical-microbiology :name "Medical Microbiology" :benchmark-id :internal-medicine :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :internal-medicine :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :neuropathology :name "Neuropathology" :benchmark-id :neurology :benchmark-match :nearest-available
+   :benchmark-imputed-p t :task-anchor-id :neurology :task-match :nearest-available :task-imputed-p t)
+  (:id :pediatric-pathology :name "Pediatric Pathology" :benchmark-id :pediatrics :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :pediatrics :task-match :nearest-available
+   :task-imputed-p t)
+  (:id :selective-pathology :name "Selective Pathology" :benchmark-id :internal-medicine :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :internal-medicine :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :adolescent-medicine :name "Adolescent Medicine" :benchmark-id :pediatrics :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :pediatrics :task-match :nearest-available
+   :task-imputed-p t)
+  (:id :child-abuse-pediatrics :name "Child Abuse Pediatrics" :benchmark-id :pediatrics :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :pediatrics :task-match :nearest-available
+   :task-imputed-p t)
+  (:id :developmental-behavioral-pediatrics :name "Developmental-Behavioral Pediatrics" :benchmark-id
+   :pediatrics :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id :pediatrics
+   :task-match :nearest-available :task-imputed-p t)
+  (:id :neonatal-perinatal-medicine :name "Neonatal-Perinatal Medicine" :benchmark-id :pediatrics
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id :pediatrics :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :pediatric-cardiology :name "Pediatric Cardiology" :benchmark-id :cardiology :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :cardiology :task-match :nearest-available
+   :task-imputed-p t)
+  (:id :pediatric-critical-care-medicine :name "Pediatric Critical Care Medicine" :benchmark-id :pediatrics
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id :pediatrics :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :pediatric-endocrinology :name "Pediatric Endocrinology" :benchmark-id :endocrinology :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :endocrinology :task-match :nearest-available
+   :task-imputed-p t)
+  (:id :pediatric-gastroenterology :name "Pediatric Gastroenterology" :benchmark-id :gastroenterology
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id :gastroenterology :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :pediatric-hematology-oncology :name "Pediatric Hematology/Oncology" :benchmark-id
+   :hematology-oncology :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id
+   :hematology-oncology :task-match :nearest-available :task-imputed-p t)
+  (:id :pediatric-infectious-diseases :name "Pediatric Infectious Diseases" :benchmark-id :pediatrics
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id :pediatrics :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :pediatric-nephrology :name "Pediatric Nephrology" :benchmark-id :pediatrics :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :pediatrics :task-match :nearest-available
+   :task-imputed-p t)
+  (:id :pediatric-pulmonology :name "Pediatric Pulmonology" :benchmark-id :pediatrics :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :pediatrics :task-match :nearest-available
+   :task-imputed-p t)
+  (:id :pediatric-rheumatology :name "Pediatric Rheumatology" :benchmark-id :pediatrics :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :pediatrics :task-match :nearest-available
+   :task-imputed-p t)
+  (:id :pediatric-transplant-hepatology :name "Pediatric Transplant Hepatology" :benchmark-id
+   :gastroenterology :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id
+   :gastroenterology :task-match :nearest-available :task-imputed-p t)
+  (:id :pediatric-hospital-medicine :name "Pediatric Hospital Medicine" :benchmark-id :pediatrics
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id :pediatrics :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :brain-injury-medicine :name "Brain Injury Medicine" :benchmark-id :physical-medicine-rehabilitation
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id
+   :physical-medicine-rehabilitation :task-match :nearest-available :task-imputed-p t)
+  (:id :spinal-cord-injury-medicine :name "Spinal Cord Injury Medicine" :benchmark-id
+   :physical-medicine-rehabilitation :benchmark-match :nearest-available :benchmark-imputed-p t
+   :task-anchor-id :physical-medicine-rehabilitation :task-match :nearest-available :task-imputed-p t)
+  (:id :pediatric-rehabilitation-medicine :name "Pediatric Rehabilitation Medicine" :benchmark-id
+   :physical-medicine-rehabilitation :benchmark-match :nearest-available :benchmark-imputed-p t
+   :task-anchor-id :physical-medicine-rehabilitation :task-match :nearest-available :task-imputed-p t)
+  (:id :craniofacial-surgery :name "Craniofacial Surgery" :benchmark-id :general-surgery :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :general-surgery :task-match :nearest-available
+   :task-imputed-p t)
+  (:id :addiction-medicine :name "Addiction Medicine" :benchmark-id :psychiatry :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :psychiatry :task-match :nearest-available
+   :task-imputed-p t)
+  (:id :addiction-psychiatry :name "Addiction Psychiatry" :benchmark-id :psychiatry :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :psychiatry :task-match :nearest-available
+   :task-imputed-p t)
+  (:id :child-and-adolescent-psychiatry :name "Child and Adolescent Psychiatry" :benchmark-id :psychiatry
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id :psychiatry :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :forensic-psychiatry :name "Forensic Psychiatry" :benchmark-id :psychiatry :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :psychiatry :task-match :nearest-available
+   :task-imputed-p t)
+  (:id :geriatric-psychiatry :name "Geriatric Psychiatry" :benchmark-id :psychiatry :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :psychiatry :task-match :nearest-available
+   :task-imputed-p t)
+  (:id :consultation-liaison-psychiatry :name "Consultation-Liaison Psychiatry" :benchmark-id :psychiatry
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id :psychiatry :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :abdominal-radiology :name "Abdominal Radiology" :benchmark-id :diagnostic-radiology :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :diagnostic-radiology :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :musculoskeletal-radiology :name "Musculoskeletal Radiology" :benchmark-id :diagnostic-radiology
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id :diagnostic-radiology
+   :task-match :nearest-available :task-imputed-p t)
+  (:id :neuroradiology :name "Neuroradiology" :benchmark-id :diagnostic-radiology :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :diagnostic-radiology :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :nuclear-radiology :name "Nuclear Radiology" :benchmark-id :diagnostic-radiology :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :diagnostic-radiology :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :pediatric-radiology :name "Pediatric Radiology" :benchmark-id :diagnostic-radiology :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :diagnostic-radiology :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :complex-general-surgical-oncology :name "Complex General Surgical Oncology" :benchmark-id
+   :general-surgery :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id
+   :general-surgery :task-match :nearest-available :task-imputed-p t)
+  (:id :pediatric-surgery :name "Pediatric Surgery" :benchmark-id :pediatrics :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :pediatrics :task-match :nearest-available
+   :task-imputed-p t)
+  (:id :surgical-critical-care :name "Surgical Critical Care" :benchmark-id :general-surgery :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :general-surgery :task-match :nearest-available
+   :task-imputed-p t)
+  (:id :vascular-surgery-independent :name "Vascular Surgery - Independent" :benchmark-id :general-surgery
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id :general-surgery :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :congenital-cardiac-surgery :name "Congenital Cardiac Surgery" :benchmark-id :general-surgery
+   :benchmark-match :nearest-available :benchmark-imputed-p t :task-anchor-id :general-surgery :task-match
+   :nearest-available :task-imputed-p t)
+  (:id :pediatric-urology :name "Pediatric Urology" :benchmark-id :urology :benchmark-match
+   :nearest-available :benchmark-imputed-p t :task-anchor-id :urology :task-match :nearest-available
+   :task-imputed-p t)))

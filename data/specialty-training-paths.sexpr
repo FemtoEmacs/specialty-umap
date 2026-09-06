@@ -1,0 +1,216 @@
+(:format :specialty-training-paths
+ :version 1
+ :country :united-states
+ :as-of "2025-06-30"
+ :unit :post-medical-school-years
+ :point-definition :acgme-specialty-or-subspecialty-program-category
+ :feature
+ (:id :minimum-total-gme-years
+  :label "Minimum accredited residency/fellowship years after medical school"
+  :type :continuous
+  :derivation "Shortest standard qualifying path represented by each record; excludes medical school and optional non-accredited advanced fellowships.")
+ :sources
+ ((:id :acgme-data-resource-book-2024-2025
+   :publisher "Accreditation Council for Graduate Medical Education"
+   :title "Data Resource Book, Academic Year 2024-2025"
+   :table "A.11"
+   :url "https://www.acgme.org/globalassets/pfassets/publicationsbooks/2024-2025_acgme_databook_document.pdf"
+   :retrieved "2026-09-05"
+   :use "Prior accredited training and accredited program lengths")
+  (:id :abms-certificates
+   :publisher "American Board of Medical Specialties"
+   :title "Specialty and Subspecialty Certificates"
+   :url "https://www.abms.org/member-boards/specialty-subspecialty-certificates/"
+   :retrieved "2026-09-05"
+   :use "Cross-check of board-recognized specialty and subspecialty names"))
+ :notes
+ ("Program categories, certification certificates, and everyday practice names are not perfectly identical."
+  "ACGME Table A.11 reports exceptions and alternative program structures; alternatives are retained in :prior-years and :program-years."
+ "The scalar feature is a minimum standard path, not a promise that every physician completes exactly that duration."
+  "Cardiology is stored as an alias of the ACGME category cardiovascular disease."
+  "Interventional cardiology is normally one year after three years of cardiovascular disease, not two years.")
+ :representative-duration
+ (:id :representative-total-gme-years
+  :label "Representative completed residency/fellowship years after medical school"
+  :derivation "Uses the ordinary completed clinical pathway for a practicing specialist rather than an exceptional early-entry or minimum-accreditation route. Medical oncology uses the overwhelmingly prevalent combined hematology/medical-oncology pathway (195 programs versus one medical-oncology-only program in ACGME Table A.11)."
+  :overrides
+  ((:id :osteopathic-neuromusculoskeletal-medicine :years 3 :reason "Standard direct-entry ONMM residency is 36 months")
+   (:id :public-health-and-general-preventive-medicine :years 3 :reason "Clinical year plus standard two-year preventive-medicine residency")
+   (:id :aerospace-medicine :years 3 :reason "Clinical year plus two-year residency")
+   (:id :occupational-and-environmental-medicine :years 3 :reason "Clinical year plus two-year residency")
+   (:id :pain-medicine :years 5 :reason "Completed four-year qualifying residency plus one-year fellowship")
+   (:id :clinical-informatics :years 5 :reason "Completed three-year primary residency plus two-year fellowship")
+   (:id :medical-oncology :years 6 :reason "Representative U.S. oncology pathway is three years internal medicine plus three years combined hematology/medical oncology")
+   (:id :neurocritical-care :years 6 :reason "Completed four-year neurology pathway plus two-year fellowship")
+   (:id :neuromuscular-medicine :years 5 :reason "Completed four-year neurology or PM&R pathway plus one-year fellowship")
+   (:id :blood-banking-transfusion-medicine :years 5 :reason "Completed four-year AP/CP pathology residency plus one-year fellowship")
+   (:id :chemical-pathology :years 5 :reason "Completed four-year AP/CP pathology residency plus one-year fellowship")
+   (:id :cytopathology :years 5 :reason "Completed four-year AP/CP pathology residency plus one-year fellowship")
+   (:id :forensic-pathology :years 5 :reason "Completed four-year AP/CP pathology residency plus one-year fellowship")
+   (:id :hematopathology :years 5 :reason "Completed four-year AP/CP pathology residency plus one-year fellowship")
+   (:id :neuropathology :years 6 :reason "Completed four-year AP/CP pathology residency plus two-year fellowship")
+   (:id :pediatric-pathology :years 5 :reason "Completed four-year AP/CP pathology residency plus one-year fellowship")
+   (:id :selective-pathology :years 5 :reason "Completed four-year AP/CP pathology residency plus one-year fellowship")
+   (:id :brain-injury-medicine :years 5 :reason "Completed four-year neurology or PM&R pathway plus one-year fellowship")
+   (:id :spinal-cord-injury-medicine :years 5 :reason "Completed four-year qualifying pathway plus one-year fellowship")
+   (:id :addiction-medicine :years 4 :reason "Completed three-year primary residency plus one-year fellowship")
+   (:id :surgical-critical-care :years 6 :reason "Completed five-year general-surgery residency plus one-year fellowship")))
+ :specialties
+ (
+  ;; Primary and pipeline specialties.
+  (:id :allergy-and-immunology :name "Allergy and Immunology" :kind :residency-or-fellowship :parent nil :prior-years (3) :program-years (2) :minimum-total-gme-years 5 :paths (((:residency :internal-medicine-or-pediatrics 3) (:fellowship :allergy-and-immunology 2))))
+  (:id :anesthesiology :name "Anesthesiology" :kind :residency :parent nil :prior-years (0 1) :program-years (3 4) :minimum-total-gme-years 4 :paths (((:residency :anesthesiology 4)) ((:preliminary :clinical-base-year 1) (:residency :anesthesiology 3))))
+  (:id :colon-and-rectal-surgery :name "Colon and Rectal Surgery" :kind :fellowship :parent :general-surgery :prior-years (5) :program-years (1) :minimum-total-gme-years 6 :paths (((:residency :general-surgery 5) (:fellowship :colon-and-rectal-surgery 1))))
+  (:id :dermatology :name "Dermatology" :kind :residency :parent nil :prior-years (0 1) :program-years (3 4) :minimum-total-gme-years 4 :paths (((:preliminary :clinical-base-year 1) (:residency :dermatology 3)) ((:residency :dermatology 4))))
+  (:id :emergency-medicine :name "Emergency Medicine" :kind :residency :parent nil :prior-years (0) :program-years (3 4) :minimum-total-gme-years 3 :paths (((:residency :emergency-medicine 3)) ((:residency :emergency-medicine 4))))
+  (:id :family-medicine :name "Family Medicine" :kind :residency :parent nil :prior-years (0) :program-years (3 4) :minimum-total-gme-years 3 :paths (((:residency :family-medicine 3))))
+  (:id :internal-medicine :name "Internal Medicine" :kind :residency :parent nil :prior-years (0) :program-years (3) :minimum-total-gme-years 3 :paths (((:residency :internal-medicine 3))))
+  (:id :medical-genetics-and-genomics :name "Medical Genetics and Genomics" :kind :residency :parent nil :prior-years (0 2) :program-years (2) :minimum-total-gme-years 4 :paths (((:residency :qualifying-residency 2) (:residency :medical-genetics-and-genomics 2))))
+  (:id :clinical-biochemical-genetics :name "Clinical Biochemical Genetics" :kind :postdoctoral-program :parent :medical-genetics-and-genomics :prior-years (0) :program-years (2) :minimum-total-gme-years 2 :paths (((:postdoctoral :clinical-biochemical-genetics 2))))
+  (:id :laboratory-genetics-and-genomics :name "Laboratory Genetics and Genomics" :kind :postdoctoral-program :parent :medical-genetics-and-genomics :prior-years (0) :program-years (2) :minimum-total-gme-years 2 :paths (((:postdoctoral :laboratory-genetics-and-genomics 2))))
+  (:id :neurological-surgery :name "Neurological Surgery" :kind :residency :parent nil :prior-years (0) :program-years (7) :minimum-total-gme-years 7 :paths (((:residency :neurological-surgery 7))))
+  (:id :neurology :name "Neurology" :kind :residency :parent nil :prior-years (0 1) :program-years (3 4) :minimum-total-gme-years 4 :paths (((:preliminary :clinical-base-year 1) (:residency :neurology 3)) ((:residency :neurology 4))))
+  (:id :child-neurology :name "Child Neurology" :kind :residency :parent nil :prior-years (2) :program-years (3) :minimum-total-gme-years 5 :paths (((:residency :pediatrics 2) (:residency :child-neurology 3))))
+  (:id :nuclear-medicine :name "Nuclear Medicine" :kind :residency :parent nil :prior-years (1) :program-years (3) :minimum-total-gme-years 4 :paths (((:preliminary :qualifying-clinical-training 1) (:residency :nuclear-medicine 3))))
+  (:id :obstetrics-and-gynecology :name "Obstetrics and Gynecology" :kind :residency :parent nil :prior-years (0) :program-years (4) :minimum-total-gme-years 4 :paths (((:residency :obstetrics-and-gynecology 4))))
+  (:id :ophthalmology :name "Ophthalmology" :kind :residency :parent nil :prior-years (1) :program-years (3 4) :minimum-total-gme-years 4 :paths (((:preliminary :clinical-base-year 1) (:residency :ophthalmology 3))))
+  (:id :orthopaedic-surgery :name "Orthopaedic Surgery" :kind :residency :parent nil :prior-years (0) :program-years (5) :minimum-total-gme-years 5 :paths (((:residency :orthopaedic-surgery 5))))
+  (:id :osteopathic-neuromusculoskeletal-medicine :name "Osteopathic Neuromusculoskeletal Medicine" :kind :residency :parent nil :prior-years (0) :program-years (1) :minimum-total-gme-years 1 :paths (((:residency :osteopathic-neuromusculoskeletal-medicine 1))))
+  (:id :otolaryngology-head-and-neck-surgery :name "Otolaryngology - Head and Neck Surgery" :kind :residency :parent nil :prior-years (0) :program-years (5) :minimum-total-gme-years 5 :paths (((:residency :otolaryngology-head-and-neck-surgery 5))))
+  (:id :pathology-anatomic-and-clinical :name "Pathology - Anatomic and Clinical" :kind :residency :parent nil :prior-years (0) :program-years (3 4) :minimum-total-gme-years 4 :paths (((:residency :pathology-anatomic-and-clinical 4))))
+  (:id :pediatrics :name "Pediatrics" :kind :residency :parent nil :prior-years (0) :program-years (3) :minimum-total-gme-years 3 :paths (((:residency :pediatrics 3))))
+  (:id :physical-medicine-and-rehabilitation :name "Physical Medicine and Rehabilitation" :kind :residency :parent nil :prior-years (0 1) :program-years (3 4) :minimum-total-gme-years 4 :paths (((:preliminary :clinical-base-year 1) (:residency :physical-medicine-and-rehabilitation 3)) ((:residency :physical-medicine-and-rehabilitation 4))))
+  (:id :plastic-surgery :name "Plastic Surgery" :kind :residency :parent nil :prior-years (3) :program-years (3) :minimum-total-gme-years 6 :paths (((:residency :qualifying-surgery 3) (:residency :plastic-surgery 3))))
+  (:id :plastic-surgery-integrated :name "Plastic Surgery - Integrated" :kind :residency :parent nil :prior-years (0) :program-years (6) :minimum-total-gme-years 6 :paths (((:residency :plastic-surgery-integrated 6))))
+  (:id :public-health-and-general-preventive-medicine :name "Public Health and General Preventive Medicine" :kind :residency :parent nil :prior-years (0 1) :program-years (1 2) :minimum-total-gme-years 2 :paths (((:preliminary :qualifying-clinical-training 1) (:residency :public-health-and-general-preventive-medicine 1))))
+  (:id :aerospace-medicine :name "Aerospace Medicine" :kind :residency :parent nil :prior-years (0 1) :program-years (2) :minimum-total-gme-years 2 :paths (((:residency :aerospace-medicine 2))))
+  (:id :occupational-and-environmental-medicine :name "Occupational and Environmental Medicine" :kind :residency :parent nil :prior-years (0 1) :program-years (1) :minimum-total-gme-years 2 :paths (((:preliminary :qualifying-clinical-training 1) (:residency :occupational-and-environmental-medicine 1))))
+  (:id :psychiatry :name "Psychiatry" :kind :residency :parent nil :prior-years (0) :program-years (3 4) :minimum-total-gme-years 4 :paths (((:residency :psychiatry 4))))
+  (:id :radiation-oncology :name "Radiation Oncology" :kind :residency :parent nil :prior-years (1) :program-years (4) :minimum-total-gme-years 5 :paths (((:preliminary :clinical-base-year 1) (:residency :radiation-oncology 4))))
+  (:id :diagnostic-radiology :name "Diagnostic Radiology" :kind :residency :parent nil :prior-years (1) :program-years (4 5) :minimum-total-gme-years 5 :paths (((:preliminary :clinical-base-year 1) (:residency :diagnostic-radiology 4))))
+  (:id :interventional-radiology-independent :name "Interventional Radiology - Independent" :kind :residency :parent :diagnostic-radiology :prior-years (4) :program-years (2) :minimum-total-gme-years 7 :paths (((:preliminary :clinical-base-year 1) (:residency :diagnostic-radiology 4) (:residency :interventional-radiology-independent 2))))
+  (:id :interventional-radiology-integrated :name "Interventional Radiology - Integrated" :kind :residency :parent nil :prior-years (1) :program-years (5 6) :minimum-total-gme-years 6 :paths (((:preliminary :clinical-base-year 1) (:residency :interventional-radiology-integrated 5))))
+  (:id :general-surgery :name "General Surgery" :kind :residency :parent nil :prior-years (0) :program-years (5) :minimum-total-gme-years 5 :paths (((:residency :general-surgery 5))))
+  (:id :vascular-surgery-integrated :name "Vascular Surgery - Integrated" :kind :residency :parent nil :prior-years (0) :program-years (5) :minimum-total-gme-years 5 :paths (((:residency :vascular-surgery-integrated 5))))
+  (:id :thoracic-surgery-independent :name "Thoracic Surgery - Independent" :kind :fellowship :parent :general-surgery :prior-years (5) :program-years (2 3) :minimum-total-gme-years 7 :paths (((:residency :general-surgery 5) (:fellowship :thoracic-surgery 2))))
+  (:id :thoracic-surgery-integrated :name "Thoracic Surgery - Integrated" :kind :residency :parent nil :prior-years (0) :program-years (6) :minimum-total-gme-years 6 :paths (((:residency :thoracic-surgery-integrated 6))))
+  (:id :urology :name "Urology" :kind :residency :parent nil :prior-years (0 1) :program-years (5) :minimum-total-gme-years 5 :paths (((:residency :urology 5))))
+  (:id :internal-medicine-pediatrics :name "Internal Medicine/Pediatrics" :kind :combined-residency :parent nil :prior-years (0) :program-years (4) :minimum-total-gme-years 4 :paths (((:residency :internal-medicine-pediatrics 4))))
+
+  ;; Anesthesiology subspecialties.
+  (:id :adult-cardiothoracic-anesthesiology :name "Adult Cardiothoracic Anesthesiology" :kind :fellowship :parent :anesthesiology :prior-years (4) :program-years (1) :minimum-total-gme-years 5 :paths (((:residency :anesthesiology 4) (:fellowship :adult-cardiothoracic-anesthesiology 1))))
+  (:id :anesthesiology-critical-care-medicine :name "Anesthesiology Critical Care Medicine" :kind :fellowship :parent :anesthesiology :prior-years (4) :program-years (1) :minimum-total-gme-years 5 :paths (((:residency :anesthesiology 4) (:fellowship :critical-care-medicine 1))))
+  (:id :obstetric-anesthesiology :name "Obstetric Anesthesiology" :kind :fellowship :parent :anesthesiology :prior-years (3 4) :program-years (1) :minimum-total-gme-years 5 :paths (((:residency :anesthesiology 4) (:fellowship :obstetric-anesthesiology 1))))
+  (:id :pain-medicine :name "Pain Medicine" :kind :multidisciplinary-fellowship :parent :multiple :prior-years (3 4) :program-years (1) :minimum-total-gme-years 4 :paths (((:residency :qualifying-specialty 3) (:fellowship :pain-medicine 1))))
+  (:id :pediatric-anesthesiology :name "Pediatric Anesthesiology" :kind :fellowship :parent :anesthesiology :prior-years (4) :program-years (1) :minimum-total-gme-years 5 :paths (((:residency :anesthesiology 4) (:fellowship :pediatric-anesthesiology 1))))
+  (:id :pediatric-cardiac-anesthesiology :name "Pediatric Cardiac Anesthesiology" :kind :fellowship :parent :anesthesiology :prior-years (4) :program-years (1) :minimum-total-gme-years 5 :paths (((:residency :anesthesiology 4) (:fellowship :pediatric-cardiac-anesthesiology 1))))
+  (:id :regional-anesthesiology-and-acute-pain-medicine :name "Regional Anesthesiology and Acute Pain Medicine" :kind :fellowship :parent :anesthesiology :prior-years (4) :program-years (1) :minimum-total-gme-years 5 :paths (((:residency :anesthesiology 4) (:fellowship :regional-anesthesiology-and-acute-pain-medicine 1))))
+
+  ;; Dermatology and emergency/family medicine subspecialties.
+  (:id :dermatopathology :name "Dermatopathology" :kind :multidisciplinary-fellowship :parent :multiple :prior-years (4) :program-years (1) :minimum-total-gme-years 5 :paths (((:residency :dermatology-or-pathology 4) (:fellowship :dermatopathology 1))))
+  (:id :micrographic-surgery-and-dermatologic-oncology :name "Micrographic Surgery and Dermatologic Oncology" :kind :fellowship :parent :dermatology :prior-years (4) :program-years (1) :minimum-total-gme-years 5 :paths (((:residency :dermatology 4) (:fellowship :micrographic-surgery-and-dermatologic-oncology 1))))
+  (:id :pediatric-dermatology :name "Pediatric Dermatology" :kind :fellowship :parent :dermatology :prior-years (4) :program-years (1) :minimum-total-gme-years 5 :paths (((:residency :dermatology 4) (:fellowship :pediatric-dermatology 1))))
+  (:id :emergency-medical-services :name "Emergency Medical Services" :kind :fellowship :parent :emergency-medicine :prior-years (3) :program-years (1) :minimum-total-gme-years 4 :paths (((:residency :emergency-medicine 3) (:fellowship :emergency-medical-services 1))))
+  (:id :medical-toxicology :name "Medical Toxicology" :kind :multidisciplinary-fellowship :parent :multiple :prior-years (3) :program-years (2) :minimum-total-gme-years 5 :paths (((:residency :qualifying-specialty 3) (:fellowship :medical-toxicology 2))))
+  (:id :pediatric-emergency-medicine :name "Pediatric Emergency Medicine" :kind :multidisciplinary-fellowship :parent :multiple :prior-years (3) :program-years (2 3) :minimum-total-gme-years 5 :paths (((:residency :emergency-medicine 3) (:fellowship :pediatric-emergency-medicine 2)) ((:residency :pediatrics 3) (:fellowship :pediatric-emergency-medicine 3))))
+  (:id :sports-medicine :name "Sports Medicine" :kind :multidisciplinary-fellowship :parent :multiple :prior-years (3 4) :program-years (1) :minimum-total-gme-years 4 :paths (((:residency :qualifying-specialty 3) (:fellowship :sports-medicine 1))))
+  (:id :undersea-and-hyperbaric-medicine :name "Undersea and Hyperbaric Medicine" :kind :multidisciplinary-fellowship :parent :multiple :prior-years (3) :program-years (1) :minimum-total-gme-years 4 :paths (((:residency :qualifying-specialty 3) (:fellowship :undersea-and-hyperbaric-medicine 1))))
+  (:id :clinical-informatics :name "Clinical Informatics" :kind :multidisciplinary-fellowship :parent :multiple :prior-years (2 3) :program-years (2) :minimum-total-gme-years 4 :paths (((:residency :qualifying-specialty 2) (:fellowship :clinical-informatics 2))))
+  (:id :geriatric-medicine :name "Geriatric Medicine" :kind :multidisciplinary-fellowship :parent :multiple :prior-years (3) :program-years (1) :minimum-total-gme-years 4 :paths (((:residency :family-or-internal-medicine 3) (:fellowship :geriatric-medicine 1))))
+  (:id :hospice-and-palliative-medicine :name "Hospice and Palliative Medicine" :kind :multidisciplinary-fellowship :parent :multiple :prior-years (3) :program-years (1) :minimum-total-gme-years 4 :paths (((:residency :qualifying-specialty 3) (:fellowship :hospice-and-palliative-medicine 1))))
+
+  ;; Internal medicine and cardiology hierarchy.
+  (:id :cardiology :acgme-id :cardiovascular-disease :name "Cardiology (Cardiovascular Disease)" :kind :fellowship :parent :internal-medicine :prior-years (3) :program-years (3) :minimum-total-gme-years 6 :paths (((:residency :internal-medicine 3) (:fellowship :cardiology 3))))
+  (:id :adult-congenital-heart-disease :name "Adult Congenital Heart Disease" :kind :fellowship :parent :cardiology :prior-years (3) :program-years (2) :minimum-total-gme-years 8 :paths (((:residency :internal-medicine 3) (:fellowship :cardiology 3) (:fellowship :adult-congenital-heart-disease 2))))
+  (:id :advanced-heart-failure-and-transplant-cardiology :name "Advanced Heart Failure and Transplant Cardiology" :kind :fellowship :parent :cardiology :prior-years (6) :program-years (1) :minimum-total-gme-years 7 :paths (((:residency :internal-medicine 3) (:fellowship :cardiology 3) (:fellowship :advanced-heart-failure-and-transplant-cardiology 1))))
+  (:id :cardiac-electrophysiology :acgme-id :clinical-cardiac-electrophysiology :name "Clinical Cardiac Electrophysiology" :kind :fellowship :parent :cardiology :prior-years (6) :program-years (2) :minimum-total-gme-years 8 :paths (((:residency :internal-medicine 3) (:fellowship :cardiology 3) (:fellowship :cardiac-electrophysiology 2))))
+  (:id :interventional-cardiology :name "Interventional Cardiology" :kind :fellowship :parent :cardiology :prior-years (6) :program-years (1) :minimum-total-gme-years 7 :paths (((:residency :internal-medicine 3) (:fellowship :cardiology 3) (:fellowship :interventional-cardiology 1))))
+  (:id :internal-medicine-critical-care-medicine :name "Internal Medicine Critical Care Medicine" :kind :fellowship :parent :internal-medicine :prior-years (3) :program-years (2) :minimum-total-gme-years 5 :paths (((:residency :internal-medicine 3) (:fellowship :critical-care-medicine 2))))
+  (:id :endocrinology-diabetes-and-metabolism :name "Endocrinology, Diabetes, and Metabolism" :kind :fellowship :parent :internal-medicine :prior-years (3) :program-years (2) :minimum-total-gme-years 5 :paths (((:residency :internal-medicine 3) (:fellowship :endocrinology-diabetes-and-metabolism 2))))
+  (:id :gastroenterology :name "Gastroenterology" :kind :fellowship :parent :internal-medicine :prior-years (3) :program-years (3) :minimum-total-gme-years 6 :paths (((:residency :internal-medicine 3) (:fellowship :gastroenterology 3))))
+  (:id :hematology-and-medical-oncology :name "Hematology and Medical Oncology" :kind :fellowship :parent :internal-medicine :prior-years (3) :program-years (3) :minimum-total-gme-years 6 :paths (((:residency :internal-medicine 3) (:fellowship :hematology-and-medical-oncology 3))))
+  (:id :infectious-disease :name "Infectious Disease" :kind :fellowship :parent :internal-medicine :prior-years (3) :program-years (2) :minimum-total-gme-years 5 :paths (((:residency :internal-medicine 3) (:fellowship :infectious-disease 2))))
+  (:id :interventional-pulmonology :name "Interventional Pulmonology" :kind :fellowship :parent :pulmonary-disease-or-pulmonary-critical-care :prior-years (2 3) :program-years (1) :minimum-total-gme-years 6 :paths (((:residency :internal-medicine 3) (:fellowship :pulmonary-disease 2) (:fellowship :interventional-pulmonology 1))))
+  (:id :medical-oncology :name "Medical Oncology" :kind :fellowship :parent :internal-medicine :prior-years (3) :program-years (2) :minimum-total-gme-years 5 :paths (((:residency :internal-medicine 3) (:fellowship :medical-oncology 2))))
+  (:id :nephrology :name "Nephrology" :kind :fellowship :parent :internal-medicine :prior-years (3) :program-years (2) :minimum-total-gme-years 5 :paths (((:residency :internal-medicine 3) (:fellowship :nephrology 2))))
+  (:id :pulmonary-disease :name "Pulmonary Disease" :kind :fellowship :parent :internal-medicine :prior-years (3) :program-years (2) :minimum-total-gme-years 5 :paths (((:residency :internal-medicine 3) (:fellowship :pulmonary-disease 2))))
+  (:id :pulmonary-disease-and-critical-care-medicine :name "Pulmonary Disease and Critical Care Medicine" :kind :fellowship :parent :internal-medicine :prior-years (3) :program-years (3) :minimum-total-gme-years 6 :paths (((:residency :internal-medicine 3) (:fellowship :pulmonary-disease-and-critical-care-medicine 3))))
+  (:id :rheumatology :name "Rheumatology" :kind :fellowship :parent :internal-medicine :prior-years (3) :program-years (2) :minimum-total-gme-years 5 :paths (((:residency :internal-medicine 3) (:fellowship :rheumatology 2))))
+  (:id :sleep-medicine :name "Sleep Medicine" :kind :multidisciplinary-fellowship :parent :multiple :prior-years (3 4 5) :program-years (1) :minimum-total-gme-years 4 :paths (((:residency :qualifying-specialty 3) (:fellowship :sleep-medicine 1))))
+  (:id :transplant-hepatology :name "Transplant Hepatology" :kind :fellowship :parent :gastroenterology :prior-years (6) :program-years (1) :minimum-total-gme-years 7 :paths (((:residency :internal-medicine 3) (:fellowship :gastroenterology 3) (:fellowship :transplant-hepatology 1))))
+
+  ;; Genetics, neurology, obstetrics/gynecology, and surgical subspecialties.
+  (:id :medical-biochemical-genetics :name "Medical Biochemical Genetics" :kind :fellowship :parent :medical-genetics-and-genomics :prior-years (4) :program-years (1) :minimum-total-gme-years 5 :paths (((:residency :qualifying-genetics-path 4) (:fellowship :medical-biochemical-genetics 1))))
+  (:id :molecular-genetic-pathology :name "Molecular Genetic Pathology" :kind :multidisciplinary-fellowship :parent :multiple :prior-years (4) :program-years (1) :minimum-total-gme-years 5 :paths (((:residency :pathology-or-medical-genetics 4) (:fellowship :molecular-genetic-pathology 1))))
+  (:id :clinical-neurophysiology :name "Clinical Neurophysiology" :kind :fellowship :parent :neurology :prior-years (4) :program-years (1) :minimum-total-gme-years 5 :paths (((:residency :neurology 4) (:fellowship :clinical-neurophysiology 1))))
+  (:id :epilepsy :name "Epilepsy" :kind :fellowship :parent :neurology :prior-years (3) :program-years (1) :minimum-total-gme-years 5 :paths (((:residency :neurology 4) (:fellowship :epilepsy 1))))
+  (:id :neurocritical-care :name "Neurocritical Care" :kind :multidisciplinary-fellowship :parent :multiple :prior-years (3 4) :program-years (2) :minimum-total-gme-years 5 :paths (((:residency :qualifying-specialty 3) (:fellowship :neurocritical-care 2))))
+  (:id :neurodevelopmental-disabilities :name "Neurodevelopmental Disabilities" :kind :fellowship :parent :child-neurology :prior-years (2) :program-years (4) :minimum-total-gme-years 6 :paths (((:residency :pediatrics 2) (:residency :neurodevelopmental-disabilities 4))))
+  (:id :neuromuscular-medicine :name "Neuromuscular Medicine" :kind :multidisciplinary-fellowship :parent :multiple :prior-years (3 4) :program-years (1) :minimum-total-gme-years 4 :paths (((:residency :qualifying-specialty 3) (:fellowship :neuromuscular-medicine 1))))
+  (:id :vascular-neurology :name "Vascular Neurology" :kind :fellowship :parent :neurology :prior-years (4) :program-years (1) :minimum-total-gme-years 5 :paths (((:residency :neurology 4) (:fellowship :vascular-neurology 1))))
+  (:id :complex-family-planning :name "Complex Family Planning" :kind :fellowship :parent :obstetrics-and-gynecology :prior-years (4) :program-years (2) :minimum-total-gme-years 6 :paths (((:residency :obstetrics-and-gynecology 4) (:fellowship :complex-family-planning 2))))
+  (:id :gynecologic-oncology :name "Gynecologic Oncology" :kind :fellowship :parent :obstetrics-and-gynecology :prior-years (4) :program-years (3) :minimum-total-gme-years 7 :paths (((:residency :obstetrics-and-gynecology 4) (:fellowship :gynecologic-oncology 3))))
+  (:id :maternal-fetal-medicine :name "Maternal-Fetal Medicine" :kind :fellowship :parent :obstetrics-and-gynecology :prior-years (4) :program-years (3) :minimum-total-gme-years 7 :paths (((:residency :obstetrics-and-gynecology 4) (:fellowship :maternal-fetal-medicine 3))))
+  (:id :reproductive-endocrinology-and-infertility :name "Reproductive Endocrinology and Infertility" :kind :fellowship :parent :obstetrics-and-gynecology :prior-years (4) :program-years (3) :minimum-total-gme-years 7 :paths (((:residency :obstetrics-and-gynecology 4) (:fellowship :reproductive-endocrinology-and-infertility 3))))
+  (:id :urogynecology-and-reconstructive-pelvic-surgery :name "Urogynecology and Reconstructive Pelvic Surgery" :kind :multidisciplinary-fellowship :parent :multiple :prior-years (3 4) :program-years (3) :minimum-total-gme-years 7 :paths (((:residency :obstetrics-and-gynecology 4) (:fellowship :urogynecology-and-reconstructive-pelvic-surgery 3)) ((:residency :urology 5) (:fellowship :urogynecology-and-reconstructive-pelvic-surgery 3))))
+  (:id :ophthalmic-plastic-and-reconstructive-surgery :name "Ophthalmic Plastic and Reconstructive Surgery" :kind :fellowship :parent :ophthalmology :prior-years (4) :program-years (2) :minimum-total-gme-years 6 :paths (((:residency :ophthalmology 4) (:fellowship :ophthalmic-plastic-and-reconstructive-surgery 2))))
+  (:id :adult-reconstructive-orthopaedics :name "Adult Reconstructive Orthopaedics" :kind :fellowship :parent :orthopaedic-surgery :prior-years (5) :program-years (1) :minimum-total-gme-years 6 :paths (((:residency :orthopaedic-surgery 5) (:fellowship :adult-reconstructive-orthopaedics 1))))
+  (:id :foot-and-ankle-orthopaedics :name "Foot and Ankle Orthopaedics" :kind :fellowship :parent :orthopaedic-surgery :prior-years (5) :program-years (1) :minimum-total-gme-years 6 :paths (((:residency :orthopaedic-surgery 5) (:fellowship :foot-and-ankle-orthopaedics 1))))
+  (:id :hand-surgery :name "Hand Surgery" :kind :multidisciplinary-fellowship :parent :multiple :prior-years (5) :program-years (1) :minimum-total-gme-years 6 :paths (((:residency :qualifying-surgical-specialty 5) (:fellowship :hand-surgery 1))))
+  (:id :musculoskeletal-oncology :name "Musculoskeletal Oncology" :kind :fellowship :parent :orthopaedic-surgery :prior-years (5) :program-years (1) :minimum-total-gme-years 6 :paths (((:residency :orthopaedic-surgery 5) (:fellowship :musculoskeletal-oncology 1))))
+  (:id :orthopaedic-sports-medicine :name "Orthopaedic Sports Medicine" :kind :fellowship :parent :orthopaedic-surgery :prior-years (5) :program-years (1) :minimum-total-gme-years 6 :paths (((:residency :orthopaedic-surgery 5) (:fellowship :orthopaedic-sports-medicine 1))))
+  (:id :orthopaedic-surgery-of-the-spine :name "Orthopaedic Surgery of the Spine" :kind :fellowship :parent :orthopaedic-surgery :prior-years (5) :program-years (1) :minimum-total-gme-years 6 :paths (((:residency :orthopaedic-surgery 5) (:fellowship :orthopaedic-surgery-of-the-spine 1))))
+  (:id :orthopaedic-trauma :name "Orthopaedic Trauma" :kind :fellowship :parent :orthopaedic-surgery :prior-years (5) :program-years (1) :minimum-total-gme-years 6 :paths (((:residency :orthopaedic-surgery 5) (:fellowship :orthopaedic-trauma 1))))
+  (:id :pediatric-orthopaedics :name "Pediatric Orthopaedics" :kind :fellowship :parent :orthopaedic-surgery :prior-years (5) :program-years (1) :minimum-total-gme-years 6 :paths (((:residency :orthopaedic-surgery 5) (:fellowship :pediatric-orthopaedics 1))))
+  (:id :neurotology :name "Neurotology" :kind :fellowship :parent :otolaryngology-head-and-neck-surgery :prior-years (5) :program-years (2) :minimum-total-gme-years 7 :paths (((:residency :otolaryngology-head-and-neck-surgery 5) (:fellowship :neurotology 2))))
+  (:id :pediatric-otolaryngology :name "Pediatric Otolaryngology" :kind :fellowship :parent :otolaryngology-head-and-neck-surgery :prior-years (5) :program-years (1) :minimum-total-gme-years 6 :paths (((:residency :otolaryngology-head-and-neck-surgery 5) (:fellowship :pediatric-otolaryngology 1))))
+
+  ;; Pathology and pediatric subspecialties.
+  (:id :blood-banking-transfusion-medicine :name "Blood Banking/Transfusion Medicine" :kind :fellowship :parent :pathology-anatomic-and-clinical :prior-years (2) :program-years (1) :minimum-total-gme-years 3 :paths (((:residency :pathology 2) (:fellowship :blood-banking-transfusion-medicine 1))))
+  (:id :chemical-pathology :name "Chemical Pathology" :kind :fellowship :parent :pathology-anatomic-and-clinical :prior-years (2) :program-years (1) :minimum-total-gme-years 3 :paths (((:residency :pathology 2) (:fellowship :chemical-pathology 1))))
+  (:id :cytopathology :name "Cytopathology" :kind :fellowship :parent :pathology-anatomic-and-clinical :prior-years (2) :program-years (1) :minimum-total-gme-years 3 :paths (((:residency :pathology 2) (:fellowship :cytopathology 1))))
+  (:id :forensic-pathology :name "Forensic Pathology" :kind :fellowship :parent :pathology-anatomic-and-clinical :prior-years (2) :program-years (1) :minimum-total-gme-years 3 :paths (((:residency :pathology 2) (:fellowship :forensic-pathology 1))))
+  (:id :hematopathology :name "Hematopathology" :kind :fellowship :parent :pathology-anatomic-and-clinical :prior-years (2) :program-years (1) :minimum-total-gme-years 3 :paths (((:residency :pathology 2) (:fellowship :hematopathology 1))))
+  (:id :medical-microbiology :name "Medical Microbiology" :kind :fellowship :parent :pathology-anatomic-and-clinical :prior-years (4) :program-years (1) :minimum-total-gme-years 5 :paths (((:residency :pathology 4) (:fellowship :medical-microbiology 1))))
+  (:id :neuropathology :name "Neuropathology" :kind :fellowship :parent :pathology-anatomic-and-clinical :prior-years (2) :program-years (2) :minimum-total-gme-years 4 :paths (((:residency :pathology 2) (:fellowship :neuropathology 2))))
+  (:id :pediatric-pathology :name "Pediatric Pathology" :kind :fellowship :parent :pathology-anatomic-and-clinical :prior-years (2) :program-years (1) :minimum-total-gme-years 3 :paths (((:residency :pathology 2) (:fellowship :pediatric-pathology 1))))
+  (:id :selective-pathology :name "Selective Pathology" :kind :fellowship :parent :pathology-anatomic-and-clinical :prior-years (2) :program-years (1) :minimum-total-gme-years 3 :paths (((:residency :pathology 2) (:fellowship :selective-pathology 1))))
+  (:id :adolescent-medicine :name "Adolescent Medicine" :kind :fellowship :parent :pediatrics :prior-years (3) :program-years (3) :minimum-total-gme-years 6 :paths (((:residency :pediatrics 3) (:fellowship :adolescent-medicine 3))))
+  (:id :child-abuse-pediatrics :name "Child Abuse Pediatrics" :kind :fellowship :parent :pediatrics :prior-years (3) :program-years (3) :minimum-total-gme-years 6 :paths (((:residency :pediatrics 3) (:fellowship :child-abuse-pediatrics 3))))
+  (:id :developmental-behavioral-pediatrics :name "Developmental-Behavioral Pediatrics" :kind :fellowship :parent :pediatrics :prior-years (3) :program-years (3) :minimum-total-gme-years 6 :paths (((:residency :pediatrics 3) (:fellowship :developmental-behavioral-pediatrics 3))))
+  (:id :neonatal-perinatal-medicine :name "Neonatal-Perinatal Medicine" :kind :fellowship :parent :pediatrics :prior-years (3) :program-years (3) :minimum-total-gme-years 6 :paths (((:residency :pediatrics 3) (:fellowship :neonatal-perinatal-medicine 3))))
+  (:id :pediatric-cardiology :name "Pediatric Cardiology" :kind :fellowship :parent :pediatrics :prior-years (3) :program-years (3) :minimum-total-gme-years 6 :paths (((:residency :pediatrics 3) (:fellowship :pediatric-cardiology 3))))
+  (:id :pediatric-critical-care-medicine :name "Pediatric Critical Care Medicine" :kind :fellowship :parent :pediatrics :prior-years (3) :program-years (3) :minimum-total-gme-years 6 :paths (((:residency :pediatrics 3) (:fellowship :pediatric-critical-care-medicine 3))))
+  (:id :pediatric-endocrinology :name "Pediatric Endocrinology" :kind :fellowship :parent :pediatrics :prior-years (3) :program-years (3) :minimum-total-gme-years 6 :paths (((:residency :pediatrics 3) (:fellowship :pediatric-endocrinology 3))))
+  (:id :pediatric-gastroenterology :name "Pediatric Gastroenterology" :kind :fellowship :parent :pediatrics :prior-years (3) :program-years (3) :minimum-total-gme-years 6 :paths (((:residency :pediatrics 3) (:fellowship :pediatric-gastroenterology 3))))
+  (:id :pediatric-hematology-oncology :name "Pediatric Hematology/Oncology" :kind :fellowship :parent :pediatrics :prior-years (3) :program-years (3) :minimum-total-gme-years 6 :paths (((:residency :pediatrics 3) (:fellowship :pediatric-hematology-oncology 3))))
+  (:id :pediatric-infectious-diseases :name "Pediatric Infectious Diseases" :kind :fellowship :parent :pediatrics :prior-years (3) :program-years (3) :minimum-total-gme-years 6 :paths (((:residency :pediatrics 3) (:fellowship :pediatric-infectious-diseases 3))))
+  (:id :pediatric-nephrology :name "Pediatric Nephrology" :kind :fellowship :parent :pediatrics :prior-years (3) :program-years (3) :minimum-total-gme-years 6 :paths (((:residency :pediatrics 3) (:fellowship :pediatric-nephrology 3))))
+  (:id :pediatric-pulmonology :name "Pediatric Pulmonology" :kind :fellowship :parent :pediatrics :prior-years (3) :program-years (3) :minimum-total-gme-years 6 :paths (((:residency :pediatrics 3) (:fellowship :pediatric-pulmonology 3))))
+  (:id :pediatric-rheumatology :name "Pediatric Rheumatology" :kind :fellowship :parent :pediatrics :prior-years (3) :program-years (3) :minimum-total-gme-years 6 :paths (((:residency :pediatrics 3) (:fellowship :pediatric-rheumatology 3))))
+  (:id :pediatric-transplant-hepatology :name "Pediatric Transplant Hepatology" :kind :fellowship :parent :pediatric-gastroenterology :prior-years (6) :program-years (1) :minimum-total-gme-years 7 :paths (((:residency :pediatrics 3) (:fellowship :pediatric-gastroenterology 3) (:fellowship :pediatric-transplant-hepatology 1))))
+  (:id :pediatric-hospital-medicine :name "Pediatric Hospital Medicine" :kind :fellowship :parent :pediatrics :prior-years (3) :program-years (2) :minimum-total-gme-years 5 :paths (((:residency :pediatrics 3) (:fellowship :pediatric-hospital-medicine 2))))
+
+  ;; Rehabilitation, psychiatry, radiology, and surgery fellowships.
+  (:id :brain-injury-medicine :name "Brain Injury Medicine" :kind :multidisciplinary-fellowship :parent :multiple :prior-years (3 4) :program-years (1) :minimum-total-gme-years 4 :paths (((:residency :qualifying-specialty 3) (:fellowship :brain-injury-medicine 1))))
+  (:id :spinal-cord-injury-medicine :name "Spinal Cord Injury Medicine" :kind :multidisciplinary-fellowship :parent :multiple :prior-years (3 4) :program-years (1) :minimum-total-gme-years 4 :paths (((:residency :qualifying-specialty 3) (:fellowship :spinal-cord-injury-medicine 1))))
+  (:id :pediatric-rehabilitation-medicine :name "Pediatric Rehabilitation Medicine" :kind :fellowship :parent :physical-medicine-and-rehabilitation :prior-years (4) :program-years (1) :minimum-total-gme-years 5 :paths (((:residency :physical-medicine-and-rehabilitation 4) (:fellowship :pediatric-rehabilitation-medicine 1))))
+  (:id :craniofacial-surgery :name "Craniofacial Surgery" :kind :fellowship :parent :plastic-surgery :prior-years (6) :program-years (1) :minimum-total-gme-years 7 :paths (((:residency :plastic-surgery 6) (:fellowship :craniofacial-surgery 1))))
+  (:id :addiction-medicine :name "Addiction Medicine" :kind :multidisciplinary-fellowship :parent :multiple :prior-years (1 2 3 4) :program-years (1) :minimum-total-gme-years 2 :paths (((:residency :qualifying-specialty 1) (:fellowship :addiction-medicine 1))))
+  (:id :addiction-psychiatry :name "Addiction Psychiatry" :kind :fellowship :parent :psychiatry :prior-years (4) :program-years (1 2) :minimum-total-gme-years 5 :paths (((:residency :psychiatry 4) (:fellowship :addiction-psychiatry 1))))
+  (:id :child-and-adolescent-psychiatry :name "Child and Adolescent Psychiatry" :kind :fellowship :parent :psychiatry :prior-years (3) :program-years (2) :minimum-total-gme-years 5 :paths (((:residency :psychiatry 3) (:fellowship :child-and-adolescent-psychiatry 2))))
+  (:id :forensic-psychiatry :name "Forensic Psychiatry" :kind :fellowship :parent :psychiatry :prior-years (4) :program-years (1) :minimum-total-gme-years 5 :paths (((:residency :psychiatry 4) (:fellowship :forensic-psychiatry 1))))
+  (:id :geriatric-psychiatry :name "Geriatric Psychiatry" :kind :fellowship :parent :psychiatry :prior-years (4) :program-years (1 2) :minimum-total-gme-years 5 :paths (((:residency :psychiatry 4) (:fellowship :geriatric-psychiatry 1))))
+  (:id :consultation-liaison-psychiatry :name "Consultation-Liaison Psychiatry" :kind :fellowship :parent :psychiatry :prior-years (4) :program-years (1) :minimum-total-gme-years 5 :paths (((:residency :psychiatry 4) (:fellowship :consultation-liaison-psychiatry 1))))
+  (:id :abdominal-radiology :name "Abdominal Radiology" :kind :fellowship :parent :diagnostic-radiology :prior-years (5) :program-years (1) :minimum-total-gme-years 6 :paths (((:residency :diagnostic-radiology 5) (:fellowship :abdominal-radiology 1))))
+  (:id :musculoskeletal-radiology :name "Musculoskeletal Radiology" :kind :fellowship :parent :diagnostic-radiology :prior-years (5) :program-years (1) :minimum-total-gme-years 6 :paths (((:residency :diagnostic-radiology 5) (:fellowship :musculoskeletal-radiology 1))))
+  (:id :neuroradiology :name "Neuroradiology" :kind :fellowship :parent :diagnostic-radiology :prior-years (5) :program-years (1) :minimum-total-gme-years 6 :paths (((:residency :diagnostic-radiology 5) (:fellowship :neuroradiology 1))))
+  (:id :nuclear-radiology :name "Nuclear Radiology" :kind :fellowship :parent :diagnostic-radiology :prior-years (5) :program-years (1) :minimum-total-gme-years 6 :paths (((:residency :diagnostic-radiology 5) (:fellowship :nuclear-radiology 1))))
+  (:id :pediatric-radiology :name "Pediatric Radiology" :kind :fellowship :parent :diagnostic-radiology :prior-years (5) :program-years (1) :minimum-total-gme-years 6 :paths (((:residency :diagnostic-radiology 5) (:fellowship :pediatric-radiology 1))))
+  (:id :complex-general-surgical-oncology :name "Complex General Surgical Oncology" :kind :fellowship :parent :general-surgery :prior-years (5) :program-years (2) :minimum-total-gme-years 7 :paths (((:residency :general-surgery 5) (:fellowship :complex-general-surgical-oncology 2))))
+  (:id :pediatric-surgery :name "Pediatric Surgery" :kind :fellowship :parent :general-surgery :prior-years (5) :program-years (2) :minimum-total-gme-years 7 :paths (((:residency :general-surgery 5) (:fellowship :pediatric-surgery 2))))
+  (:id :surgical-critical-care :name "Surgical Critical Care" :kind :fellowship :parent :general-surgery :prior-years (3) :program-years (1) :minimum-total-gme-years 4 :paths (((:residency :general-surgery 3) (:fellowship :surgical-critical-care 1))))
+  (:id :vascular-surgery-independent :name "Vascular Surgery - Independent" :kind :fellowship :parent :general-surgery :prior-years (5) :program-years (2) :minimum-total-gme-years 7 :paths (((:residency :general-surgery 5) (:fellowship :vascular-surgery 2))))
+  (:id :congenital-cardiac-surgery :name "Congenital Cardiac Surgery" :kind :fellowship :parent :thoracic-surgery-independent :prior-years (7) :program-years (2) :minimum-total-gme-years 9 :paths (((:residency :general-surgery 5) (:fellowship :thoracic-surgery 2) (:fellowship :congenital-cardiac-surgery 2))))
+  (:id :pediatric-urology :name "Pediatric Urology" :kind :fellowship :parent :urology :prior-years (5) :program-years (2) :minimum-total-gme-years 7 :paths (((:residency :urology 5) (:fellowship :pediatric-urology 2))))
+ ))

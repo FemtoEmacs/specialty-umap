@@ -1,0 +1,404 @@
+% Created 2026-09-04 Fri 15:49
+% Intended LaTeX compiler: pdflatex
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage{longtable}
+\usepackage{wrapfig}
+\usepackage{rotating}
+\usepackage[normalem]{ulem}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{capt-of}
+\usepackage{hyperref}
+\DeclareUnicodeCharacter{03B1}{\ensuremath{\alpha}}
+\DeclareUnicodeCharacter{2190}{\ensuremath{\leftarrow}}
+\DeclareUnicodeCharacter{2192}{\ensuremath{\rightarrow}}
+\DeclareUnicodeCharacter{2264}{\ensuremath{\leq}}
+\author{Antonio Eduardo Costa Pereira }
+\date{\today}
+\title{A Gentle Introduction to Lean: Values, Types, and Other Goodies\\\medskip
+\large 2.4.2 List Comprehensions and Proofs}
+\hypersetup{
+ pdfauthor={Antonio Eduardo Costa Pereira },
+ pdftitle={A Gentle Introduction to Lean: Values, Types, and Other Goodies},
+ pdfkeywords={},
+ pdfsubject={},
+ pdfcreator={Emacs 30.2 (Org mode 9.7.11)}, 
+ pdflang={English}}
+\begin{document}
+
+\maketitle
+\tableofcontents
+
+\section{2.4.2 List Comprehensions and Proofs}
+\label{sec:org794b53e}
+
+The preceding quicksort was declared \texttt{partial} because Lean had not been given
+a termination argument.  Every recursive function must either be structurally
+recursive or have a measure that becomes smaller at each recursive call.
+
+Filtering never makes a list longer.  The library theorem
+\texttt{List.length\_filter\_le} states precisely this fact:
+
+\begin{verbatim}
+example (p : α → Bool) (xs : List α) :
+    (xs.filter p).length ≤ xs.length := by
+  exact List.length_filter_le p xs
+\end{verbatim}
+
+A recursive call in quicksort begins with a nonempty list \texttt{x :: xs} and
+continues with a filtered part of \texttt{xs}.  The filtered list has length at most
+\texttt{xs.length}, while \texttt{x :: xs} has length \texttt{xs.length + 1}.  Thus the filtered
+list is strictly smaller than the original nonempty list:
+
+\begin{verbatim}
+example (x : α) (xs : List α) (p : α → Bool) :
+    (xs.filter p).length < (x :: xs).length := by
+  exact Nat.lt_succ_of_le (List.length_filter_le p xs)
+\end{verbatim}
+
+Here \texttt{List.length\_filter\_le p xs} supplies the non-strict inequality
+
+\begin{verbatim}
+(xs.filter p).length ≤ xs.length
+\end{verbatim}
+
+and \texttt{Nat.lt\_succ\_of\_le} turns it into the strict inequality needed for a
+recursive call whose original input is \texttt{x :: xs}.
+
+The same proof can be attached to both recursive branches of quicksort.  The
+\texttt{termination\_by} clause tells Lean to use the input list's length as the
+decreasing measure.
+
+\begin{verbatim}
+def quicksortByProof [Ord α] (input : List α) : List α :=
+  match input with
+  | [] => []
+  | x :: xs =>
+      let smaller := xs.filter (fun y => compare y x == .lt)
+      let remaining := xs.filter (fun y => compare y x != .lt)
+      have smaller_decreases : smaller.length < (x :: xs).length := by
+        exact Nat.lt_succ_of_le (List.length_filter_le _ _)
+      have remaining_decreases : remaining.length < (x :: xs).length := by
+        exact Nat.lt_succ_of_le (List.length_filter_le _ _)
+      quicksortByProof smaller ++ [x] ++ quicksortByProof remaining
+termination_by input.length
+
+#eval IO.println "\nQuicksort with a termination proof:"
+#eval quicksortByProof [7, 1, 4, 1, 9, 2, 6]
+\end{verbatim}
+
+The two named proofs are used automatically when Lean checks the recursive
+calls.  This definition is total: \texttt{partial} is no longer needed.
+\subsection{One quicksort for arrays and file arrays}
+\label{sec:org8cdc97f}
+
+An ordinary array and a fixed-record file share the operations needed by
+quicksort.  Both have a size, an operation that reads the item at an index, and
+an operation that stores an item at an index.  The following structure captures
+that common interface.  The type constructor \texttt{m} allows the operations to be
+state transformations for an in-memory array or \texttt{IO} operations for a file.
+
+\begin{quote}
+For demonstration only. Don't try to understand these snippets unless you
+already know Lean well.
+\end{quote}
+
+\begin{verbatim}
+structure IndexedStore (m : Type → Type) (α : Type) where
+  size : Nat
+  aref : Nat → m α
+  store : Nat → α → m Unit
+
+partial def swapAt [Monad m]
+    (data : IndexedStore m α) (i j : Nat) : m Unit := do
+  let left ← data.aref i
+  let right ← data.aref j
+  data.store i right
+  data.store j left
+
+partial def partitionIndexed [Monad m] [Ord α]
+    (data : IndexedStore m α) (high scan boundary : Nat) : m Nat := do
+  if scan < high then
+    let pivot ← data.aref high
+    let current ← data.aref scan
+    if compare current pivot == .lt then
+      swapAt data scan boundary
+      partitionIndexed data high (scan + 1) (boundary + 1)
+    else
+      partitionIndexed data high (scan + 1) boundary
+  else
+    swapAt data boundary high
+    return boundary
+
+partial def quicksortIndexedRange [Monad m] [Ord α]
+    (data : IndexedStore m α) (low high : Nat) : m Unit := do
+  if low < high then
+    let pivotIndex ← partitionIndexed data high low low
+    if pivotIndex != 0 then
+      quicksortIndexedRange data low (pivotIndex - 1)
+    quicksortIndexedRange data (pivotIndex + 1) high
+
+def quicksortIndexed [Monad m] [Ord α]
+    (data : IndexedStore m α) : m Unit := do
+  if data.size != 0 then
+    quicksortIndexedRange data 0 (data.size - 1)
+\end{verbatim}
+
+This is the only quicksort algorithm in the demonstration.  It receives
+\texttt{size}, \texttt{aref}, and \texttt{store} through \texttt{IndexedStore}.  Its partition step chooses
+the last item as the pivot, moves smaller items before it, and returns the
+pivot's final index.  The recursive definitions are \texttt{partial} because this
+demonstration does not supply termination proofs.
+\subsubsection{Adapting an ordinary array}
+\label{sec:orgaf5e3aa}
+
+\texttt{StateM} carries the changing array invisibly from one \texttt{aref} or \texttt{store}
+operation to the next.  This makes an ordinary Lean \texttt{Array} implement the
+common interface.
+
+\begin{verbatim}
+def arrayAsIndexedStore [Inhabited α]
+    (size : Nat) : IndexedStore (StateM (Array α)) α where
+  size := size
+  aref index := fun array => (array[index]!, array)
+  store index value := fun array => ((), array.set! index value)
+
+def quicksortArray [Ord α] [Inhabited α] (items : Array α) : Array α :=
+  let operation := quicksortIndexed (arrayAsIndexedStore items.size)
+  (operation.run items).2
+
+#eval IO.println "\nA quicksorted array of natural numbers:"
+#eval quicksortArray #[8, 3, 1, 7, 3, 2]
+
+#eval IO.println "\nA quicksorted array of proper names:"
+#eval quicksortArray #["Grace", "Ada", "Edsger", "Barbara", "Alan"]
+\end{verbatim}
+
+\texttt{quicksortArray} runs the generic quicksort with the ordinary-array adapter and
+returns the final \texttt{StateM} array.
+\subsubsection{Representing a file as an array}
+\label{sec:orgfd84e72}
+
+The file begins with a fixed 64-byte header.  The header identifies the format
+and records the size and number of data slots.  A file with 64-byte names and
+12 slots begins conceptually as follows; spaces occupy the unused bytes of the
+header and every short name slot.
+
+\begin{verbatim}
+LEAN-FILE-ARRAY
+slot-size=64
+slot-count=12
+[64-byte name slot 0]
+[64-byte name slot 1]
+...
+\end{verbatim}
+
+The metadata at the top lets \texttt{FileArray.open} recover the layout from the file
+itself.  The \texttt{FileArray} value retains that information for later accesses.
+
+\begin{verbatim}
+def fileArrayHeaderBytes : Nat := 64
+
+structure FileArray where
+  path : System.FilePath
+  slotSize : Nat
+  slotCount : Nat
+  deriving Repr
+
+def spaces (count : Nat) : String :=
+  String.ofList (List.replicate count ' ')
+
+def padToBytes (width : Nat) (text : String) : IO String := do
+  let used := text.toUTF8.size
+  if used > width then
+    throw <| IO.userError s!"text exceeds its {width}-byte slot: {text}"
+  return text ++ spaces (width - used)
+
+def metadataText (slotSize slotCount : Nat) : String :=
+  s!"LEAN-FILE-ARRAY\nslot-size={slotSize}\nslot-count={slotCount}\n"
+
+def valueAfterEquals (line : String) : IO Nat :=
+  match line.splitOn "=" with
+  | [_key, value] =>
+      match value.trimAscii.toString.toNat? with
+      | some number => return number
+      | none => throw <| IO.userError s!"invalid number in header: {line}"
+  | _ => throw <| IO.userError s!"invalid header line: {line}"
+
+def parseFileArrayHeader
+    (path : System.FilePath) (header : String) : IO FileArray := do
+  let lines := header.trimAscii.toString.splitOn "\n"
+  match lines with
+  | magic :: slotLine :: countLine :: _ =>
+      if magic != "LEAN-FILE-ARRAY" then
+        throw <| IO.userError "not a Lean file array"
+      let slotSize ← valueAfterEquals slotLine
+      let slotCount ← valueAfterEquals countLine
+      return { path, slotSize, slotCount }
+  | _ => throw <| IO.userError "incomplete Lean file-array header"
+\end{verbatim}
+
+Lean's standard file handle supports sequential access but has no arbitrary
+byte-seek operation.  For demonstration on Unix, the low-level functions below
+invoke \texttt{dd} to access an exact byte range.  The operating-system details remain
+under the file-array abstraction.
+
+\begin{verbatim}
+def runDD
+    (arguments : Array String) (input : Option String := none) : IO String := do
+  let result ← IO.Process.output { cmd := "dd", args := arguments } input
+  if result.exitCode != 0 then
+    throw <| IO.userError result.stderr
+  return result.stdout
+
+def readBytesAt
+    (path : System.FilePath) (offset count : Nat) : IO String :=
+  runDD #[s!"if={path}", "bs=1", s!"skip={offset}", s!"count={count}",
+    "status=none"]
+
+def writeBytesAt
+    (path : System.FilePath) (offset : Nat) (text : String) : IO Unit := do
+  let result ← runDD
+    #[s!"of={path}", "bs=1", s!"seek={offset}",
+      s!"count={text.toUTF8.size}", "conv=notrunc", "status=none"]
+    (some text)
+  if !result.isEmpty then
+    throw <| IO.userError "dd unexpectedly wrote to standard output"
+
+def FileArray.open (path : System.FilePath) : IO FileArray := do
+  let header ← readBytesAt path 0 fileArrayHeaderBytes
+  parseFileArrayHeader path header
+
+def FileArray.slotOffset (file : FileArray) (index : Nat) : Nat :=
+  fileArrayHeaderBytes + index * file.slotSize
+\end{verbatim}
+
+The file versions of \texttt{aref} and \texttt{store} mimic indexed array access.  They check
+the index and ensure that a stored value occupies exactly one slot, so storing
+one name cannot shift or overwrite neighboring names.
+
+\begin{verbatim}
+def FileArray.aref (file : FileArray) (index : Nat) : IO String := do
+  if index >= file.slotCount then
+    throw <| IO.userError s!"file-array index out of bounds: {index}"
+  let slot ← readBytesAt file.path (file.slotOffset index) file.slotSize
+  if slot.toUTF8.size != file.slotSize then
+    throw <| IO.userError s!"short file-array slot: {index}"
+  return slot
+
+def FileArray.store
+    (file : FileArray) (index : Nat) (value : String) : IO Unit := do
+  if index >= file.slotCount then
+    throw <| IO.userError s!"file-array index out of bounds: {index}"
+  if value.toUTF8.size != file.slotSize then
+    throw <| IO.userError s!"value does not occupy {file.slotSize} bytes"
+  writeBytesAt file.path (file.slotOffset index) value
+
+def FileArray.asIndexedStore (file : FileArray) : IndexedStore IO String where
+  size := file.slotCount
+  aref := file.aref
+  store := file.store
+\end{verbatim}
+
+\texttt{FileArray.asIndexedStore} is the adapter.  It passes the file's \texttt{aref} and
+\texttt{store} functions to the same \texttt{quicksortIndexed} used for ordinary arrays.
+Quicksort has no knowledge that these operations access a file.
+\subsubsection{Creating, copying, and quicksorting the names file}
+\label{sec:org63d0cba}
+
+The small arrays below are only pools from which random first and family names
+are chosen.  Each generated name is written immediately to a fixed-size file
+slot.  The names file is never loaded into an array or list.
+
+\begin{verbatim}
+def firstNames : Array String :=
+  #["Ada", "Alan", "Barbara", "Edsger", "Grace", "John", "Katherine",
+    "Margaret"]
+
+def familyNames : Array String :=
+  #["Backus", "Dijkstra", "Hamilton", "Hopper", "Johnson", "Lovelace",
+    "Turing", "Wilkes"]
+
+def randomProperName : IO String := do
+  let firstIndex ← IO.rand 0 (firstNames.size - 1)
+  let familyIndex ← IO.rand 0 (familyNames.size - 1)
+  return s!"{firstNames[firstIndex]!} {familyNames[familyIndex]!}"
+
+def writeRandomNameSlots
+    (handle : IO.FS.Handle) (slotSize : Nat) : Nat → IO Unit
+  | 0 => handle.flush
+  | count + 1 => do
+      let name ← randomProperName
+      handle.putStr (← padToBytes slotSize name)
+      writeRandomNameSlots handle slotSize count
+
+def createRandomNamesFile
+    (path : System.FilePath) (slotSize slotCount : Nat) : IO Unit := do
+  let handle ← IO.FS.Handle.mk path .write
+  handle.putStr
+    (← padToBytes fileArrayHeaderBytes (metadataText slotSize slotCount))
+  writeRandomNameSlots handle slotSize slotCount
+\end{verbatim}
+
+Before sorting, the original file is copied to another file.  The copy is
+streamed in chunks of at most 4096 bytes, so the copy operation's memory use
+does not grow with the file.
+
+\begin{verbatim}
+partial def copyRemaining
+    (source destination : IO.FS.Handle) : IO Unit := do
+  let bytes ← source.read 4096
+  if bytes.isEmpty then
+    destination.flush
+  else
+    destination.write bytes
+    copyRemaining source destination
+
+def copyFileByChunks
+    (sourcePath destinationPath : System.FilePath) : IO Unit := do
+  let source ← IO.FS.Handle.mk sourcePath .read
+  let destination ← IO.FS.Handle.mk destinationPath .write
+  copyRemaining source destination
+\end{verbatim}
+
+Only a display routine remains file-specific.  It reads one slot at a time and
+removes its padding for printing.
+
+\begin{verbatim}
+partial def printFileArray (file : FileArray) (index : Nat := 0) : IO Unit := do
+  if index < file.slotCount then
+    IO.println (← file.aref index).trimAsciiEnd.toString
+    printFileArray file (index + 1)
+
+def originalNamesPath : System.FilePath := "proper_names-original.arr"
+def sortedNamesPath : System.FilePath := "proper_names-sorted.arr"
+
+#eval do
+  createRandomNamesFile originalNamesPath 64 12
+  copyFileByChunks originalNamesPath sortedNamesPath
+  let file ← FileArray.open sortedNamesPath
+  quicksortIndexed file.asIndexedStore
+  IO.println s!"\nThe original file is {originalNamesPath}."
+  IO.println s!"Its in-place quicksorted copy is {sortedNamesPath}:"
+  printFileArray file
+\end{verbatim}
+
+Running the tangled tutorial file creates two fixed-record files.  The first
+retains the random order.  The second begins as an exact copy and is then
+quicksorted in place through \texttt{FileArray.aref} and \texttt{FileArray.store}.  With its
+64-byte header and twelve 64-byte data slots, its size stays
+\texttt{64 + 12 * 64 = 832} bytes.
+
+\begin{verbatim}
+lean 02-4-2-list_compreh-proofs.lean
+ls -l proper_names-original.arr proper_names-sorted.arr
+\end{verbatim}
+
+The same \texttt{quicksortIndexed} program sorted both the ordinary arrays and the
+file array.  The comparison includes the space padding, which does not change
+the order of these proper names.  Duplicate randomly generated names are
+retained.
+\end{document}

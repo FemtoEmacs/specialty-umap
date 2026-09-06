@@ -1,0 +1,41 @@
+Allergy & Immunology $368K
+Anesthesiology $570K
+Bariatric Medicine $359K
+Cardiology $634K
+Dermatology $536K
+Emergency Medicine $440K
+Endocrinology $320K
+Family Medicine $314K
+Gastroenterology $626K
+Genetics $240K
+Hematology $574K
+Hematology Oncology $587K
+Hepatology $459K
+Infectious Disease $321K
+Internal Medicine $327K
+Nephrology $385K
+Neurology $370K
+Neuromusculoskeletal Medicine $242K
+Neurosurgery $988K
+Nuclear Medicine $376K
+Obstetrics & Gynecology $410K
+Oncology $638K
+Ophthalmology $553K
+Oral Maxillofacial Surgery $667K
+Orthopedic Surgery $801K
+Otolaryngology $613K
+Pathology $409K
+Pediatrics $265K
+Physical Medicine & Rehabilitation $348K
+Plastic Surgery $725K
+Podiatry $233K
+Preventive Medicine $365K
+Psychiatry $351K
+Pulmonology $484K
+Radiation Oncology $647K
+Radiology $691K
+Rheumatology $318K
+Surgery $513K
+Urgent Care $339K
+Urology $639K
+Wound Care $344K

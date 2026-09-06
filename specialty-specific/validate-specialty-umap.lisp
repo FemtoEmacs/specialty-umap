@@ -1,0 +1,42 @@
+;;;; Validate persisted specialty UMAP artifacts.
+(defparameter *validation-directory* (make-pathname :name nil :type nil :defaults *load-truename*))
+(defparameter *validation-root* (merge-pathnames "../" *validation-directory*))
+(defparameter *build-umap-run-main* nil)
+(load (merge-pathnames "build-umap.lisp" *validation-root*))
+
+(defun finite-real-p (value)
+  (and (realp value) (= value value)
+       (< (abs (coerce value 'double-float)) most-positive-double-float)))
+
+(let* ((source (read-csv-records (merge-pathnames "examples/specialty-points-umap.csv" *validation-root*)))
+       (embedded (read-csv-records (merge-pathnames "output/specialty-umap-embedding.csv" *validation-root*)))
+       (result (read-form-file (merge-pathnames "output/specialty-umap-result.sexp" *validation-root*)))
+       (html (file-text (merge-pathnames "output/specialty-umap.html" *validation-root*)))
+       (coordinates (getf result :coordinates)))
+  (unless (and (= 143 (length source) (length embedded))
+               (= 143 (getf result :observation-count)) (= 9 (getf result :feature-count))
+               (equal (mapcar (lambda (row) (getf row :specialty-id)) source)
+                      (mapcar (lambda (row) (getf row :specialty-id)) embedded)))
+    (error "Point count, dimensions, or specialty order differs."))
+  (unless (and (= (array-dimension coordinates 0) 143) (= (array-dimension coordinates 1) 2))
+    (error "Persisted coordinate array is not 143x2."))
+  (dotimes (row 143)
+    (dotimes (column 2)
+      (unless (finite-real-p (aref coordinates row column))
+        (error "Non-finite coordinate at (~D,~D)." row column)))
+    ;; The shared CSV reader intentionally follows the host reader's default
+    ;; float format, so comparison permits single-float parsing roundoff.
+    (unless (and (< (abs (- (getf (nth row embedded) :x) (aref coordinates row 0))) 1d-5)
+                 (< (abs (- (getf (nth row embedded) :y) (aref coordinates row 1))) 1d-5))
+      (error "CSV and S-expression coordinates differ at row ~D." row)))
+  (unless (and (search "Medical specialties: nine-feature UMAP" html)
+               (search "Winning Common Lisp coordinates" html) (search "20260905" html)
+               (search "highlight_ring_field" html)
+               (search "Female majority (>50%)" html))
+    (error "HTML lacks expected title, preserved-coordinate UI, seed, or female-majority rings."))
+  (let ((female-majority-count
+          (count-if (lambda (row) (> (getf row :female-resident-percent) 50)) embedded)))
+    (unless (plusp female-majority-count)
+      (error "No female-majority specialties were found."))
+    (format t "PASS: 143x9 input; finite 143x2 embedding; ~D female-majority rings; CSV, S-expression, and HTML agree.~%"
+            female-majority-count)))

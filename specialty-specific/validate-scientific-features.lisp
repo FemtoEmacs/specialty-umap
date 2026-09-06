@@ -1,0 +1,42 @@
+#!/usr/bin/env sbcl --script
+
+(defparameter *root* (make-pathname :name nil :type nil :defaults *load-truename*))
+(defun read-one (relative)
+  (with-open-file (stream (merge-pathnames relative *root*) :direction :input) (read stream)))
+(defun ensure (condition control &rest arguments)
+  (unless condition (apply #'error control arguments)))
+(defun unique-p (items) (= (length items) (length (remove-duplicates items))))
+
+(let* ((training (read-one "../data/specialty-training-paths.sexpr"))
+       (data (read-one "../data/specialty-scientific-activity.sexpr"))
+       (point-ids (mapcar (lambda (x) (getf x :id)) (getf training :specialties)))
+       (records (getf data :specialties))
+       (record-ids (mapcar (lambda (x) (getf x :id)) records))
+       (benchmarks (getf data :nih-specialty-benchmarks))
+       (benchmark-ids (mapcar (lambda (x) (getf x :id)) benchmarks)))
+  (ensure (= 143 (length point-ids)) "Expected 143 training points")
+  (ensure (equal point-ids record-ids) "Scientific feature IDs/order differ from point universe")
+  (ensure (unique-p record-ids) "Duplicate scientific feature point")
+  (ensure (= 19 (length benchmarks)) "Expected 19 source specialty benchmarks")
+  (ensure (unique-p benchmark-ids) "Duplicate NIH benchmark")
+  (ensure (= 184382 (reduce #'+ benchmarks :key (lambda (x) (getf x :grants))))
+          "Grant total does not match source table")
+  ;; Published specialty rows are rounded to $0.1M and sum to $83,342.7M;
+  ;; the paper's separately printed total is $83,342.9M.
+  (ensure (< (abs (- 83342.9 (reduce #'+ benchmarks :key
+                                    (lambda (x) (getf x :funding-million-usd))))) 0.21)
+          "Rounded funding rows do not reconcile with source total")
+  (dolist (record records)
+    (ensure (member (getf record :nih-benchmark-id) benchmark-ids)
+            "Unknown donor for ~S" (getf record :id))
+    (ensure (eq (getf record :imputed-p)
+                (not (null (member (getf record :match)
+                                   '(:nearest-available :component-of-combined-category)))))
+            "Imputation flag mismatch for ~S" (getf record :id)))
+  (dolist (row benchmarks)
+    (ensure (> (getf row :grants-per-active-physician-per-year) 0)
+            "Nonpositive normalized grants for ~S" (getf row :id))
+    (ensure (> (getf row :funding-thousand-usd-per-active-physician-per-year) 0)
+            "Nonpositive normalized funding for ~S" (getf row :id)))
+  (format t "PASS: ~D points, ~D NIH specialty benchmarks; source totals reconcile.~%"
+          (length records) (length benchmarks)))

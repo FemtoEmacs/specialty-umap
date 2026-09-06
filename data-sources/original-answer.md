@@ -1,0 +1,77 @@
+To build a robust decision-support atlas in Common Lisp, your LLM/CLI fetching strategy needs precise data vectors and high-fidelity target destinations.
+
+To maximize cluster separation, these features are structured into raw metrics or absolute dimensions instead of pre-bounded [0.0, 1.0] scales. This will allow your SBCL architecture to safely apply non-linear transformations like log10(1 + x) to expose structural boundaries.
+------------------------------
+
+## Tier 1: The Tactical & Legal Moat Features
+
+### 1. Immediate Malpractice Risk (Surgical/Acute Threat)
+
+ 
+* The Feature Data: Average malpractice payout sizes or the percentage of specialists sued annually. This separates flashpoint surgical/procedural fields from slow-manifestation cognitive domains.
+
+* Where to Fetch via CLI/LLM:
+  ** Instruct the CLI to extract data from the Medscape Malpractice Report.
+  ** Query medical liability insurance pools like the [The Doctors-Company](https://www.thedoctors.com/) or [MLMIC Insurance](https://www.mlmic.com/) metrics.
+
+
+## 2. Institutional Credentialing Density (Mid-Level Defense)
+
+
+* The Feature Data: Average minimum number of years required for post-graduate training (Residency + Specialized Fellowship). This acts as a primary defense barrier against mid-level provider encroachment.
+* Where to Fetch via CLI/LLM:
+* Scrape training requirements from the [Accreditation Council for Graduate Medical Education (ACGME)](https://www.acgme.org/).
+   * Target core curricula definitions via top-tier academic systems like [Johns Hopkins Medicine](https://www.hopkinsmedicine.org/) and [Yale School of Medicine](https://medicine.yale.edu/).
+
+
+## 3. Protocolized Substitution Exposure
+
+
+* The Feature Data: The percentage of clinic operations that can be handled by standard algorithm charts, automated diagnostic panels, or independent Nurse Practitioners (NPs).
+* Where to Fetch via CLI/LLM:
+* Extract procedural scope authorization lists via the [American Medical Association (AMA) Advocacy Frameworks](https://www.ama-assn.org/advocacy).
+   * Target billing distribution data from the [Centers for Medicare & Medicaid Services (CMS)](https://www.cms.gov/) showing the ratio of physician billing to mid-level billing codes.
+
+
+------------------------------
+## Tier 2: Patient Economics & Interaction Physics## 4. Patient Lifetime Value & Return Velocity (Fidelization)
+
+ 
+* The Feature Data: Average number of recurring clinical visits a single unique patient makes over a 5-year or 10-year horizon. This segregates longitudinal management (Oncology, Rheumatology) from transactional workflows (Emergency Medicine, Anesthesiology).
+* Where to Fetch via CLI/LLM:
+* Instruct the CLI to crawl documentation patterns on [PubMed Central (PMC)](https://pmc.ncbi.nlm.nih.gov/) for patient cohort continuity studies.
+   * Look up diagnostic category models via healthcare databases like [MDPI Healthcare Data Repositories](https://www.mdpi.com/journal/healthcare).
+
+
+## 5. Financial Baseline Yield (Compensation Models)
+
+
+* The Feature Data: Average annual gross income and the percentage breakdown of salary structures (e.g., guaranteed base, Relative Value Unit (RVU) productivity bonuses, fee-for-service).
+* Where to Fetch via CLI/LLM:
+* Direct the LLM to query standard annual physician salary breakdowns from Medscape Physician Compensation Reports.
+   * Cross-reference raw benchmarks via the [American Medical Group Association (AMGA)](https://www.amga.org/) salary data and Merit Health tracking frameworks.
+
+
+------------------------------
+## Tier 3: Technical Execution & Laboratory Vectors## 6. Hands-On Procedural Density
+
+
+* The Feature Data: The raw count or density of direct, invasive, physical-contact medical interventions performed weekly (e.g., surgical incisions, physical biopsies, catheter guide-wire operations).
+* Where to Fetch via CLI/LLM:
+* Target procedural volume databases such as the [American College of Surgeons (ACS)](https://www.facs.org/).
+   * Extract billing activity patterns for Category I CPT codes through the [AMA Current Procedural Terminology (CPT)](https://www.ama-assn.org/amaone/cpt-current-procedural-terminology) data tables.
+
+
+## 7. Molecular & Laboratory Diagnostic Complexity
+
+* 
+* The Feature Data: The programmatic presence and depth of specialized complex assay oversight, molecular analytics, single-cell sequencing tracks, and genetic profiling requirements.
+* Where to Fetch via CLI/LLM:
+* Examine fellowship program structures and pathology lab requirements directly via [Johns Hopkins Department of Pathology](https://pathology.jhu.edu/) or [Yale Pathology](https://medicine.yale.edu/pathology/).
+   * Query biomarker/sequencing implementation guidelines directly via the [National Comprehensive Cancer Network (NCCN)](https://www.nccn.org/).
+* 
+
+------------------------------
+
+
+

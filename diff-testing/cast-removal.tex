@@ -1,0 +1,193 @@
+\RequirePackage{fix-cm}
+\documentclass[fontsize=16pt]{scrartcl}
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.7em}
+\setlength{\emergencystretch}{3em}
+\lstset{basicstyle=\ttfamily\small,breaklines=true,columns=fullflexible,
+  frame=single,rulecolor=\color{black!25},showstringspaces=false,
+  aboveskip=0.8em,belowskip=0.8em}
+
+\title{Removing the Cast\\A Differential-Testing Tutorial}
+\author{C-to-Common-Lisp quicksort}
+\date{September 2026}
+
+\begin{document}
+\maketitle
+
+\section*{The orthopedic metaphor}
+
+The C implementation is the Oracle: it preserves the behavior that the new
+Common Lisp implementation must match.  CFFI is the temporary Cast.  The Cast
+helps Lisp walk while the algorithm still depends on C, but it is not the final
+athlete.  We remove it from the top down, one function at a time.  After every
+removal, the C Oracle sorts the same deterministic corpus as the partial Lisp
+implementation.  Only matching results allow the next step.
+
+This is differential testing, not a proof.  It is strong regression evidence
+because the Oracle and the implementation under test execute independently and
+their structured integer vectors are compared directly.
+
+\section*{Files and reproducibility}
+
+\begin{itemize}[leftmargin=*]
+\item \texttt{quick-sort-array-oracle.c}: untouched copy of the original C program.
+\item \texttt{oracle-cli.c}: command-line adapter around that preserved Oracle.
+\item \texttt{quick-sort-array.c}: the four-function C Cast, with \texttt{main} removed.
+\item \texttt{cast.lisp}: CFFI declarations and the staged Lisp replacements.
+\item \texttt{quick-sort-array.lisp}: final standalone Common Lisp program.
+\item \texttt{differential-tests.lisp}: deterministic Oracle comparisons and invariants.
+\item \texttt{run-stages.sh}: builds both C artifacts and verifies stages 0 through 4.
+\end{itemize}
+
+Run \texttt{./run-stages.sh}.  Stage 0 checks the complete C Cast.  Stages 1--4
+then remove one dependency at a time.  Every stage checks empty, singleton,
+duplicate, negative, sorted, reverse-sorted, and generated arrays.
+
+\section*{Stage 0: fit the complete C Cast}
+
+CFFI loads \texttt{libquicksort-cast.dylib}.  The initial public Lisp entry
+point delegates to C, so the baseline verifies the foreign-memory conversion,
+calling convention, and Oracle harness before any algorithm is translated.
+
+\begin{lstlisting}[language=Lisp]
+(defun cast-quicksort-indexed (data size)
+  (%c-quicksort-indexed data size)
+  (values))
+\end{lstlisting}
+
+\textbf{Verification:} Stage 0 passed against the C Oracle.
+
+\section*{Stage 1: replace \texttt{quicksortIndexed}}
+
+The outer function is the safest first removal.  Lisp handles the empty-array
+guard and still leans on the C range sorter.
+
+\begin{lstlisting}[language=Lisp]
+(defun cast-quicksort-indexed (data size)
+  (unless (zerop size)
+    (cast-quicksort-indexed-range data 0 (1- size)))
+  (values))
+\end{lstlisting}
+
+\textbf{Verification:} Stage 1 passed against the C Oracle.
+
+\section*{Stage 2: replace the range sorter}
+
+Lisp now owns the divide-and-conquer recursion.  Partitioning remains in C.
+The guard on a zero pivot index exactly preserves the source program's control
+flow, while a high value below low terminates the right recursion.
+
+\begin{lstlisting}[language=Lisp]
+(defun cast-quicksort-indexed-range (data low high)
+  (when (< low high)
+    (let ((pivot-index
+            (cast-partition-indexed data high low low)))
+      (unless (zerop pivot-index)
+        (cast-quicksort-indexed-range
+          data low (1- pivot-index)))
+      (cast-quicksort-indexed-range
+        data (1+ pivot-index) high)))
+  (values))
+\end{lstlisting}
+
+\textbf{Verification:} Stage 2 passed against the C Oracle.
+
+\section*{Stage 3: replace the partitioner}
+
+The recursive partition walk moves into Lisp.  CFFI's \texttt{mem-aref} reads
+the same contiguous C integer buffer.  Swapping is still delegated to the last
+piece of the C Cast.
+
+\begin{lstlisting}[language=Lisp]
+(defun cast-partition-indexed (data high scan boundary)
+  (if (< scan high)
+      (let ((pivot (cffi:mem-aref data :int high))
+            (current (cffi:mem-aref data :int scan)))
+        (if (< current pivot)
+            (progn
+              (cast-swap-at data scan boundary)
+              (cast-partition-indexed
+                data high (1+ scan) (1+ boundary)))
+            (cast-partition-indexed
+              data high (1+ scan) boundary)))
+      (progn
+        (cast-swap-at data boundary high)
+        boundary)))
+\end{lstlisting}
+
+\textbf{Verification:} Stage 3 passed against the C Oracle.
+
+\section*{Stage 4: replace \texttt{swapAt}}
+
+The final C operation is removed.  Lisp reads both cells before writing either,
+which retains the original swap behavior even when both indexes are equal.
+
+\begin{lstlisting}[language=Lisp]
+(defun cast-swap-at (data i j)
+  (let ((left (cffi:mem-aref data :int i))
+        (right (cffi:mem-aref data :int j)))
+    (setf (cffi:mem-aref data :int i) right
+          (cffi:mem-aref data :int j) left))
+  (values))
+\end{lstlisting}
+
+\textbf{Verification:} Stage 4 passed against the C Oracle.
+
+\section*{The Cast is off}
+
+At Stage 4 every quicksort function is implemented in Common Lisp.  The staged
+adapter still stores values in foreign memory so all five stages share an
+identical test boundary.  We now remove that last piece of scaffolding by using
+a Lisp vector directly.  The standalone program has no CFFI, shared-library, C,
+Quicklisp, or other external runtime dependency.  Lisp can now play soccer.
+
+\begin{lstlisting}[language=Lisp,basicstyle=\ttfamily\footnotesize]
+(defun swap-at (data i j)
+  (rotatef (aref data i) (aref data j))
+  (values))
+
+(defun partition-indexed (data high scan boundary)
+  (if (< scan high)
+      (if (< (aref data scan) (aref data high))
+          (progn
+            (swap-at data scan boundary)
+            (partition-indexed
+              data high (1+ scan) (1+ boundary)))
+          (partition-indexed data high (1+ scan) boundary))
+      (progn (swap-at data boundary high) boundary)))
+
+(defun quicksort-indexed-range (data low high)
+  (when (< low high)
+    (let ((pivot-index
+            (partition-indexed data high low low)))
+      (unless (zerop pivot-index)
+        (quicksort-indexed-range data low (1- pivot-index)))
+      (quicksort-indexed-range data (1+ pivot-index) high)))
+  (values))
+
+(defun quicksort-indexed (data size)
+  (unless (zerop size)
+    (quicksort-indexed-range data 0 (1- size)))
+  data)
+\end{lstlisting}
+
+Run the original example or supply integers on the command line:
+
+\begin{lstlisting}
+sbcl --script quick-sort-array.lisp
+sbcl --script quick-sort-array.lisp 9 -2 7 7 0
+\end{lstlisting}
+
+The final dependency-free suite compares 72 deterministic vectors with the C
+Oracle and directly exercises all four Lisp functions and the command-line entry
+point.  Run the complete history, including this final suite, with
+\texttt{./run-stages.sh}.
+
+\end{document}
