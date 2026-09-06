@@ -217,17 +217,15 @@ missingness, stability checks, and noise assignments with every map.
 
 ## Candidate interests in the current atlas
 
-The candidate page preserves the map and its colors. Expand **Explore clusters
-for your interests**, enter ranges for the five preferences, and choose
-**Suggest clusters**. Suggestions highlight existing clusters. Approximate learned
-placements are optional. See `specialty-specific/CANDIDATE-MAP.md` for details.
+Expand **Explore a cluster for your interests** and provide all nine ranges.
+Procedural profile uses integers 0–10; percentages use integers 0–100.
 
 ```sh
-sbcl --script specialty-specific/train-candidate-map.lisp
-sbcl --script specialty-specific/build-candidate-page.lisp
+sbcl --script specialty-specific/run-nine-pipeline.lisp
 open output/specialty-candidate.html
 ```
 
-The model's measured cluster agreement is shown in the panel. Five preferences
-do not reliably reproduce all clusters of the nine-feature reference map;
-cluster suggestions use feature compatibility and expose projection agreement.
+This runs the nine-feature Transformer comparison, AWRS-SMC map search, RBF
+training, grouped validation, and page build. The quality panel separates cluster
+classification from approximate coordinate placement. Read
+`specialty-specific/CANDIDATE-MAP.md` for the results and their limits.

@@ -79,10 +79,10 @@ Read `TOUR.md`, or open it in Emacs:
 
 ## Candidate interest profiles
 
-Open `output/specialty-candidate.html` to explore existing clusters using five
-preference ranges. The trained Common Lisp model preserves the current atlas;
-the collapsible questionnaire suggests up to three clusters and optionally shows
-approximate profile markers. The measured held-out cluster agreement is low,
-so suggestions combine feature compatibility with separately reported projection
-agreement. See `specialty-specific/CANDIDATE-MAP.md` for reproduction, evaluation,
-questionnaire assumptions, and model limitations.
+Open `output/specialty-candidate.html`. All nine dimensions use whole-number
+ranges. A Common Lisp radial-basis network predicts one existing cluster, with
+optional approximate coordinates. The original map and colors are preserved.
+Grouped validation recovered 127/143 cluster labels; coordinate-cluster recovery
+was 101/143. AWRS-SMC tested 24 alternative map recipes; none beat the reference.
+See `specialty-specific/CANDIDATE-MAP.md` for reproduction, full comparisons,
+questionnaire mappings, and validation limitations.
