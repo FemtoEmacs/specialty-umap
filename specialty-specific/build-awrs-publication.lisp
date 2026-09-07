@@ -42,7 +42,9 @@
     (format out "<details><summary>Exact recipe</summary><p>Weights in order: training duration, procedures, science, private practice, competitiveness, clinical intensity, salary, physician availability, female representation. Final two values: neighborhood size and minimum distance.</p><code>~A</code></details><p>Generated from the saved AWRS-SMC search. <a href='ref-awrs-smc-compar.html'>See the full comparison and all tested recipes.</a></p></body></html>" (awrs-html-escape (getf entry :recipe))))))
  ;; The landing page is the full interactive atlas and candidate questionnaire.
  (publication-write "index.html"
-  (replace-marker (file-text (candidate-path "output/specialty-candidate.html"))
+  (replace-marker
+   (replace-marker (file-text (candidate-path "output/specialty-candidate.html"))
+    "</head>" "<script data-goatcounter=\"https://specialty-umap.goatcounter.com/count\" async src=\"https://gc.zgo.at/count.js\"></script></head>")
    "<main id=\"app\">" (concatenate 'string "<main id=\"app\">" *publication-nav*)))
  (publication-write "ref-awrs-smc-compar.html"
   (replace-marker page "<h1>" (concatenate 'string *publication-nav* "<h1>")))
