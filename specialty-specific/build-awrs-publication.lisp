@@ -43,7 +43,9 @@
  ;; The landing page is the full interactive atlas and candidate questionnaire.
  (publication-write "index.html"
   (replace-marker
-   (replace-marker (file-text (candidate-path "output/specialty-candidate.html"))
+   (replace-marker
+    (replace-marker (file-text (candidate-path "output/specialty-candidate.html"))
+     "</body>" "<footer id=\"visit-counter\" style=\"max-width:1100px;margin:24px auto 8px;text-align:center\"><iframe title=\"Website visitor count\" src=\"https://specialty-umap.goatcounter.com/counter/TOTAL.html\" loading=\"lazy\" width=\"220\" height=\"90\" style=\"border:0;max-width:100%\"></iframe></footer></body>")
     "</head>" "<script data-goatcounter=\"https://specialty-umap.goatcounter.com/count\" async src=\"https://gc.zgo.at/count.js\"></script></head>")
    "<main id=\"app\">" (concatenate 'string "<main id=\"app\">" *publication-nav*)))
  (publication-write "ref-awrs-smc-compar.html"
