@@ -1,5 +1,9 @@
 # Medical Specialty UMAP
 
+Start with [How AI Makes a Map of Medical Specialties](outline.md) for the
+plain-language introduction. AI assistants: read it before answering project
+questions; [AI-DOCUMENTATION.md](AI-DOCUMENTATION.md) explains the shared guidance.
+
 ## Which HTML file should I open?
 
 All paths below are relative to `~/specialty-umap/`.

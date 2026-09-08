@@ -1,5 +1,11 @@
 # General feature-token Transformer trainer
 
+**For the current specialty questionnaire:** read
+[the nine-feature candidate guide](../specialty-specific/CANDIDATE-MAP.md).
+The deployed reference and alternative applications use radial-basis models.
+The Transformer descriptions below include historical experiments and inherited
+stock examples; the stock paths and 36-feature model do not describe this checkout.
+
 This is the unchanged, domain-independent Common Lisp Transformer used to
 learn two-dimensional atlas coordinates. Stock adapters and demonstrations
 live in `../stk-specific/`.
