@@ -1,5 +1,32 @@
 # Medical Specialty UMAP
 
+## Current Transformer application
+
+The published `index.html` uses the multi-head, multi-layer Transformer.
+Build from source with SBCL only:
+
+```sh
+./spc-setup.x
+# Alternatively:
+sbcl --script spc-setup.x
+```
+
+This runs AWRS-SMC with SplitMix64 and explicitly selected multinomial
+resampling, builds and validates the corpus, trains for 100 epochs by default,
+and writes `output/cl-specialty-awrs-preferences.html`. Set `SPC_EPOCHS`,
+`SPC_LR`, or `SPC_FORCE_BASE_MAP` to override the defaults. No Node.js, npm,
+Quicklisp, or external numerical library is required. Viewing needs a browser
+and network access for D3. The build preserves the formatted templates and
+pretty-prints embedded data in Common Lisp.
+
+The published homepage includes the existing GoatCounter. Rebuilding does not
+automatically replace `index.html`. Older RBF application descriptions below
+are retained for the legacy pages; they no longer describe the homepage.
+
+Minimum training years match the model's source feature. All slider paths use
+the same conversion, checked by `sbcl --script tests/preferences-conversion-tests.lisp`.
+
+
 Start with [How AI Makes a Map of Medical Specialties](outline.md) for the
 plain-language introduction. AI assistants: read it before answering project
 questions; [AI-DOCUMENTATION.md](AI-DOCUMENTATION.md) explains the shared guidance.

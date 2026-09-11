@@ -115,13 +115,13 @@ The project also trains a model to connect descriptions with map positions and
 groups. Like a student, it needs exercises and answers: specialty measurements
 paired with their known positions and group labels on the map.
 
-The current questionnaire uses a **radial-basis network**. Think of it as a
+The legacy questionnaire uses a **radial-basis network**. Think of it as a
 learner that combines what it has learned from nearby examples to suggest a
 group and an approximate place on the map. It can do this without drawing the
 whole map again.
 
 The project also tried a Transformer, the kind of learning design used in early
-ChatGPT models. The radial-basis model was selected for the current application.
+ChatGPT models. The radial-basis model was selected for the earlier application. The published homepage now uses a fully trained multi-head, multi-layer Transformer for interactive placement.
 Both belong to the project's learning machinery under `smc-trainer`.
 
 The reference map supplies exercises for its model. The separate AWRS-SMC

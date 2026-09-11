@@ -36,4 +36,5 @@
   :standardize nil
   :feature-penalty 0.002d0
   :beta 8.0d0
-  :adjacency-strength 0.05d0))
+  :adjacency-strength 0.05d0
+  :resampling-method :multinomial))

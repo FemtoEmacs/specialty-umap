@@ -10,7 +10,7 @@
         (start (let ((positions (remove nil (list (search marker text) (search spaced text))))) (if positions (reduce (function min) positions) (error "Missing declaration ~A" name))))
         (end (position #\Newline text :start start)))
   (concatenate 'string (subseq text 0 start) marker json ";" (subseq text end))))
-(defun alternative-json (x) (with-output-to-string (s) (write-json x s)))
+(defun alternative-json (x) (with-output-to-string (s) (write-json-pretty x s)))
 (defun alternative-cluster-name (id rows)
  (if (string= id "noise") "Unclustered"
   (let* ((members (remove-if-not (lambda (r) (equal id (getf r :cluster))) rows))
@@ -80,7 +80,7 @@
     (candidate-write (candidate-path "smc-trainer/candidate-awrs-deployed.sexp") artifact)
     (candidate-write (candidate-path "output/candidate-awrs-validation.sexp") (append evaluation (list :folds (nreverse folds))))
     (with-open-file (s (candidate-path "output/candidate-awrs-model.json") :direction :output :if-exists :supersede)
-     (write-json (list :artifact artifact :fixtures fixtures) s))
+     (write-json-pretty (list :artifact artifact :fixtures fixtures) s))
     (setf (getf manifest :title) "Medical specialties: AWRS-SMC alternative")
     (setf page (alternative-declaration page "problem" (alternative-json manifest))
           page (alternative-declaration page "rows" (alternative-json page-rows))

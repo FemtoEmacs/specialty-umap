@@ -1,0 +1,701 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Transformer preference insertion</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 12px;
+        font: 15px system-ui;
+        color: #171717;
+      }
+      main {
+        max-width: 1200px;
+        margin: auto;
+      }
+      h1 {
+        font-size: 18px;
+        margin: 0 0 4px;
+      }
+      p.sub {
+        margin: 0 0 14px;
+        color: #444;
+        max-width: 900px;
+      }
+      .layout {
+        display: flex;
+        gap: 22px;
+        flex-wrap: wrap;
+        align-items: flex-start;
+      }
+      .panel {
+        flex: 1 1 360px;
+        min-width: 320px;
+        max-width: 420px;
+      }
+      .plot-wrap {
+        flex: 2 1 520px;
+        min-width: 320px;
+      }
+      svg {
+        width: 100%;
+        height: auto;
+      }
+      .feature-row {
+        margin-bottom: 14px;
+      }
+      .feature-row label {
+        display: flex;
+        justify-content: space-between;
+        font-weight: 600;
+        font-size: 13.5px;
+      }
+      .feature-row .meta {
+        font-weight: 400;
+        color: #555;
+        font-size: 12px;
+      }
+      .feature-row input[type="range"] {
+        width: 100%;
+      }
+      .feature-row .value {
+        font-variant-numeric: tabular-nums;
+      }
+      button {
+        font: inherit;
+        padding: 6px 12px;
+        border-radius: 6px;
+        border: 1px solid #999;
+        background: #f4f4f4;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #e8e8e8;
+      }
+      .result {
+        margin-top: 16px;
+        padding: 10px 12px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        background: #fafafa;
+        font-size: 13.5px;
+      }
+      .result b {
+        display: block;
+        margin-bottom: 4px;
+      }
+      .tip {
+        position: fixed;
+        display: none;
+        pointer-events: none;
+        width: min(420px, calc(100vw - 24px));
+        box-sizing: border-box;
+        overflow-wrap: anywhere;
+        background: white;
+        border: 1px solid #888;
+        padding: 8px 10px;
+        line-height: 1.4;
+        z-index: 10;
+        font-size: 13px;
+      }
+      .tip b {
+        display: block;
+        margin-bottom: 2px;
+      }
+      .legend {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-top: 8px;
+        font-size: 13px;
+      }
+      .legend-hint {
+        margin: 6px 0 0;
+        font-size: 12.5px;
+        color: #666;
+      }
+      .legend-item {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .legend-clickable {
+        cursor: pointer;
+        padding: 2px 6px;
+        border-radius: 4px;
+        border: 1px solid transparent;
+      }
+      .legend-clickable:hover {
+        background: #f0f4ff;
+        border-color: #c7d6ff;
+      }
+      .legend-clickable:focus-visible {
+        outline: 2px solid #2563eb;
+        outline-offset: 1px;
+      }
+      .legend-swatch {
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        display: inline-block;
+      }
+      .legend-you {
+        /* Matches the plot's d3.symbolStar marker (a 5-point star), not a
+           pentagon, so the legend key and the plotted symbol agree. */
+        width: 15px;
+        height: 15px;
+        display: inline-block;
+        background: #dc2626;
+        border: 2px solid #111827;
+        clip-path: polygon(
+          50% 0%,
+          61% 35%,
+          98% 35%,
+          68% 57%,
+          79% 91%,
+          50% 70%,
+          21% 91%,
+          32% 57%,
+          2% 35%,
+          39% 35%
+        );
+      }
+    </style>
+  </head>
+  <body>
+    <main id="app">
+      <h1>Insert your own preferences into the AWRS-SMC atlas</h1>
+      <p class="sub">
+        Move the sliders below and the trained Transformer
+        (<code>smc-trainer/transformer.lisp</code>) places your preferred
+        specialty on the atlas live — the red star is your placement, and it
+        moves the instant you touch a slider; wherever the sliders sit right now
+        <b>is</b> where your specialty is placed. Each cluster in the legend is
+        labeled with the specialty closest to its center, as a
+        <i>representative example</i> — the cluster is the whole group of
+        similar specialties, not just the one lending its name. Click a
+        cluster's name to jump every slider to that representative specialty's
+        own values. The prediction runs entirely in this page (a JavaScript port
+        of <code>transformer-forward</code>) using the model exactly as trained.
+      </p>
+      <div class="layout">
+        <div class="panel">
+          <div id="features"></div>
+          <button id="reset">Reset to typical values</button>
+          <div class="result" id="result"></div>
+        </div>
+        <div class="plot-wrap">
+          <svg role="img"></svg>
+          <div class="legend" id="legend"></div>
+          <p class="legend-hint">
+            Click a cluster's name above to jump every slider to that cluster's
+            representative specialty.
+          </p>
+        </div>
+      </div>
+      <div class="tip"></div>
+    </main>
+    <script type="module">
+      import * as d3 from "https://esm.sh/d3@7.9.0";
+
+      // ---- Embedded data, written by
+      // smc-trainer/demo/build-preferences-page.lisp ----
+      const atlasPoints = __ATLAS_POINTS__;
+      const features = __FEATURES__;
+      const salaryFeatureIndex = features.findIndex(
+        (f) => f.name === "salary-z",
+      );
+      function formatSalary(value) {
+        if (value == null || Number.isNaN(value)) return "salary n/a";
+        return `$${Math.round(value).toLocaleString()}/yr`;
+      }
+      const clusterSummaries = __CLUSTERS__;
+      const model = __MODEL__;
+
+      // ---- JavaScript port of smc-trainer/transformer.lisp's inference
+      // path (TRANSFORMER-FORWARD and everything it calls). Inference only;
+      // no autodiff needed client-side. Each function names the Lisp
+      // function it mirrors. Cross-checked against smc-trainer/predict.lisp
+      // on hand-built fixtures before this template was used for real. ----
+      const EPSILON = 1e-6;
+
+      function dot(a, b) {
+        // ad-dot
+        let sum = 0;
+        for (let i = 0; i < a.length; i += 1) sum += a[i] * b[i];
+        return sum;
+      }
+      function matVec(matrix, vector, bias) {
+        // ad-matvec
+        const result = new Array(matrix.length);
+        for (let r = 0; r < matrix.length; r += 1) {
+          result[r] = dot(matrix[r], vector) + (bias ? bias[r] : 0);
+        }
+        return result;
+      }
+      function vectorAdd(a, b) {
+        // ad-vector+
+        const result = new Array(a.length);
+        for (let i = 0; i < a.length; i += 1) result[i] = a[i] + b[i];
+        return result;
+      }
+      function rmsNormalize(vector) {
+        // ad-rms-normalize
+        let sumSquares = 0;
+        for (let i = 0; i < vector.length; i += 1)
+          sumSquares += vector[i] * vector[i];
+        const denominator = Math.sqrt(sumSquares / vector.length + EPSILON);
+        return vector.map((x) => x / denominator);
+      }
+      function rmsNormalizeWithGain(vector, gain) {
+        // ad-rms-normalize-with-gain
+        const normalized = rmsNormalize(vector);
+        return normalized.map((x, i) => x * gain[i]);
+      }
+      function softmax(scores) {
+        // ad-softmax
+        const maximum = Math.max(...scores);
+        const exponentials = scores.map((s) => Math.exp(s - maximum));
+        const total = exponentials.reduce((a, b) => a + b, 0);
+        return exponentials.map((e) => e / total);
+      }
+      function featureTokens(m, input) {
+        // transformer-feature-tokens
+        if (input.length !== m["feature_count"]) {
+          throw new Error(
+            `Expected ${m["feature_count"]} input features, received ${input.length}.`,
+          );
+        }
+        const dModel = m["d_model"];
+        return input.map((value, feature) => {
+          const identity = m["feature_embeddings"][feature];
+          const token = new Array(dModel);
+          for (let c = 0; c < dModel; c += 1) {
+            token[c] =
+              identity[c] +
+              m["scalar_weights"][c] * value +
+              m["scalar_bias"][c];
+          }
+          return token;
+        });
+      }
+      function legacySelfAttention(m, tokens) {
+        // transformer-self-attention (version 1)
+        const d = m["d_model"];
+        const queries = tokens.map((x) => matVec(m.wq, x));
+        const keys = tokens.map((x) => matVec(m.wk, x));
+        const values = tokens.map((x) => matVec(m.wv, x));
+        const scale = Math.sqrt(d);
+        return queries.map((query) => {
+          const probabilities = softmax(
+            keys.map((key) => dot(query, key) / scale),
+          );
+          const mixed = new Array(d).fill(0);
+          for (let c = 0; c < d; c += 1) {
+            let weighted = 0;
+            for (let t = 0; t < probabilities.length; t += 1)
+              weighted += probabilities[t] * values[t][c];
+            mixed[c] = weighted;
+          }
+          return matVec(m.wo, mixed);
+        });
+      }
+      function legacyFeedForward(m, state) {
+        // transformer-feed-forward (version 1)
+        const hidden = matVec(m.w1, state, m.b1).map(Math.tanh);
+        return matVec(m.w2, hidden, m.b2);
+      }
+      function legacyBlock(m, tokens) {
+        // transformer-block (version 1)
+        const attention = legacySelfAttention(m, tokens);
+        const afterAttention = tokens.map((token, i) =>
+          rmsNormalize(vectorAdd(token, attention[i])),
+        );
+        return afterAttention.map((state) =>
+          rmsNormalize(vectorAdd(state, legacyFeedForward(m, state))),
+        );
+      }
+      function multiHeadAttention(m, layerIndex, tokens) {
+        // transformer-multihead-attention
+        const dModel = m["d_model"],
+          numHeads = m["num_heads"],
+          dHead = dModel / numHeads;
+        const tokenCount = tokens.length;
+        const headsWq = m["layer_heads_wq"][layerIndex];
+        const headsWk = m["layer_heads_wk"][layerIndex];
+        const headsWv = m["layer_heads_wv"][layerIndex];
+        const wo = m["layer_wo"][layerIndex];
+        const scale = Math.sqrt(dHead);
+        const headOutputs = new Array(numHeads);
+        for (let head = 0; head < numHeads; head += 1) {
+          const queries = tokens.map((x) => matVec(headsWq[head], x));
+          const keys = tokens.map((x) => matVec(headsWk[head], x));
+          const values = tokens.map((x) => matVec(headsWv[head], x));
+          const mixed = new Array(tokenCount);
+          for (let qi = 0; qi < tokenCount; qi += 1) {
+            const probabilities = softmax(
+              keys.map((key) => dot(queries[qi], key) / scale),
+            );
+            const result = new Array(dHead).fill(0);
+            for (let c = 0; c < dHead; c += 1) {
+              let weighted = 0;
+              for (let t = 0; t < tokenCount; t += 1)
+                weighted += probabilities[t] * values[t][c];
+              result[c] = weighted;
+            }
+            mixed[qi] = result;
+          }
+          headOutputs[head] = mixed;
+        }
+        const result = new Array(tokenCount);
+        for (let ti = 0; ti < tokenCount; ti += 1) {
+          const concatenated = new Array(dModel);
+          for (let head = 0; head < numHeads; head += 1) {
+            const piece = headOutputs[head][ti];
+            for (let c = 0; c < dHead; c += 1)
+              concatenated[head * dHead + c] = piece[c];
+          }
+          result[ti] = matVec(wo, concatenated);
+        }
+        return result;
+      }
+      function feedForwardLayer(m, layerIndex, state) {
+        // transformer-feed-forward-layer
+        const hidden = matVec(
+          m["layer_w1"][layerIndex],
+          state,
+          m["layer_b1"][layerIndex],
+        ).map(Math.tanh);
+        return matVec(
+          m["layer_w2"][layerIndex],
+          hidden,
+          m["layer_b2"][layerIndex],
+        );
+      }
+      function encoderLayer(m, layerIndex, tokens) {
+        // transformer-encoder-layer
+        const attentionGain = m["layer_attention_gain"][layerIndex];
+        const ffnGain = m["layer_ffn_gain"][layerIndex];
+        const normed = tokens.map((token) =>
+          rmsNormalizeWithGain(token, attentionGain),
+        );
+        const attended = multiHeadAttention(m, layerIndex, normed);
+        const afterAttention = tokens.map((token, i) =>
+          vectorAdd(token, attended[i]),
+        );
+        const normed2 = afterAttention.map((token) =>
+          rmsNormalizeWithGain(token, ffnGain),
+        );
+        const ffnOut = normed2.map((state) =>
+          feedForwardLayer(m, layerIndex, state),
+        );
+        return afterAttention.map((token, i) => vectorAdd(token, ffnOut[i]));
+      }
+      function encoderStack(m, tokens) {
+        // transformer-encoder-stack
+        let state = tokens;
+        for (
+          let layerIndex = 0;
+          layerIndex < m["num_layers"];
+          layerIndex += 1
+        ) {
+          state = encoderLayer(m, layerIndex, state);
+        }
+        return state.map((token) =>
+          rmsNormalizeWithGain(token, m["final_norm_gain"]),
+        );
+      }
+      function meanPool(encoded, dModel) {
+        // transformer-mean-pool
+        const pooled = new Array(dModel).fill(0);
+        for (let c = 0; c < dModel; c += 1) {
+          let sum = 0;
+          for (let i = 0; i < encoded.length; i += 1) sum += encoded[i][c];
+          pooled[c] = sum / encoded.length;
+        }
+        return pooled;
+      }
+      function transformerForward(m, input) {
+        // transformer-forward
+        const tokens = featureTokens(m, input);
+        const encoded =
+          m.kind === "legacy-single-head"
+            ? legacyBlock(m, tokens)
+            : encoderStack(m, tokens);
+        const pooled = meanPool(encoded, m["d_model"]);
+        return matVec(m["output_weights"], pooled, m["output_bias"]);
+      }
+
+      // ---- Page wiring ----
+      const root = document.querySelector("#app");
+      const featuresDiv = document.querySelector("#features");
+      const resultDiv = document.querySelector("#result");
+      const tip = root.querySelector(".tip");
+      const svg = d3.select("svg");
+      const series = [...d3.schemeTableau10, ...d3.schemeSet3];
+      const clusters = [...new Set(atlasPoints.map((p) => p.cluster))].sort(
+        (a, b) => a - b,
+      );
+      const color = d3.scaleOrdinal(clusters, series);
+      const clusterSummaryById = new Map(
+        clusterSummaries.map((c) => [c.cluster, c]),
+      );
+
+      function titleCase(id) {
+        return id.replace(/-/g, " ").replace(/\b\w/g, (ch) => ch.toUpperCase());
+      }
+
+      function placeAtCluster(clusterInfo) {
+        // Selection and manual edits use the same raw-to-model conversion.
+        clusterInfo.raw_values.forEach((value, i) => {
+          document.getElementById(`f${i}`).value = value;
+        });
+        update();
+      }
+
+      // Each feature carries a `points` table -- (raw, z) pairs for all 143
+      // specialties, sorted by raw value -- built in build-preferences-page.lisp
+      // by joining this corpus against examples/specialty-points-raw.csv.
+      // Interpolating through it converts a human-readable raw slider value
+      // (years, dollars, percent, ...) into the z-scored number the trained
+      // Transformer actually expects, without needing to know or replicate
+      // whatever upstream standardization formula produced that z originally.
+      function interpolate(points, x) {
+        if (x <= points[0][0]) return points[0][1];
+        const last = points[points.length - 1];
+        if (x >= last[0]) return last[1];
+        let lo = 0,
+          hi = points.length - 1;
+        while (hi - lo > 1) {
+          const mid = (lo + hi) >> 1;
+          if (points[mid][0] <= x) lo = mid;
+          else hi = mid;
+        }
+        const [x0, y0] = points[lo],
+          [x1, y1] = points[hi];
+        const t = x1 === x0 ? 0 : (x - x0) / (x1 - x0);
+        return y0 + t * (y1 - y0);
+      }
+
+      function formatRaw(feature, value) {
+        const decimals = feature.decimals ?? 1;
+        if (feature.unit === "%") return `${value.toFixed(decimals)}%`;
+        if (feature.unit === "$/year")
+          return `$${Math.round(value).toLocaleString()}/yr`;
+        if (!feature.unit) return value.toFixed(decimals);
+        return `${value.toFixed(decimals)} ${feature.unit}`;
+      }
+
+      function currentInput() {
+        return features.map((feature, i) => {
+          const raw = Number(document.getElementById(`f${i}`).value);
+          return interpolate(feature.points, raw);
+        });
+      }
+
+      features.forEach((feature, i) => {
+        const row = document.createElement("div");
+        row.className = "feature-row";
+        const step =
+          "any"; // Preserve exact representative values without browser rounding.
+        row.innerHTML = `
+          <label>
+            <span>${feature.label}</span>
+            <span class="value" id="v${i}"></span>
+          </label>
+          <div class="meta">typical range: ${formatRaw(feature, feature.raw_min)} – ${formatRaw(feature, feature.raw_max)}</div>
+          <input type="range" id="f${i}" min="${feature.raw_min}" max="${feature.raw_max}"
+                 step="${step}" value="${feature.raw_mean}">
+        `;
+        featuresDiv.appendChild(row);
+      });
+
+      function positionTooltip(event) {
+        const gap = 12;
+        const viewport = window.visualViewport;
+        const viewportLeft = viewport ? viewport.offsetLeft : 0;
+        const viewportTop = viewport ? viewport.offsetTop : 0;
+        const viewportWidth = viewport ? viewport.width : innerWidth;
+        const viewportHeight = viewport ? viewport.height : innerHeight;
+        const right = viewportLeft + viewportWidth - gap;
+        const bottom = viewportTop + viewportHeight - gap;
+
+        // Fix the width before measuring so edge placement cannot reflow it.
+        tip.style.width = `${Math.max(1, Math.min(420, viewportWidth - 2 * gap))}px`;
+        const { width, height } = tip.getBoundingClientRect();
+        const left =
+          event.clientX + gap + width > right
+            ? event.clientX - width - gap
+            : event.clientX + gap;
+        const top =
+          event.clientY + gap + height > bottom
+            ? event.clientY - height - gap
+            : event.clientY + gap;
+
+        tip.style.left = `${Math.max(viewportLeft + gap, Math.min(left, right - width))}px`;
+        tip.style.top = `${Math.max(viewportTop + gap, Math.min(top, bottom - height))}px`;
+      }
+
+      let you = { x: 0, y: 0 };
+
+      function draw() {
+        const width = Math.max(420, root.clientWidth * 0.62);
+        const height = Math.max(420, Math.min(680, width * 0.72));
+        const margin = { top: 16, right: 24, bottom: 46, left: 60 };
+        svg.attr("viewBox", `0 0 ${width} ${height}`).selectAll("*").remove();
+
+        const allX = [...atlasPoints.map((p) => p.x), you.x];
+        const allY = [...atlasPoints.map((p) => p.y), you.y];
+        const x = d3
+          .scaleLinear()
+          .domain(d3.extent(allX))
+          .nice()
+          .range([margin.left, width - margin.right]);
+        const y = d3
+          .scaleLinear()
+          .domain(d3.extent(allY))
+          .nice()
+          .range([height - margin.bottom, margin.top]);
+
+        svg
+          .append("g")
+          .attr("transform", `translate(0,${height - margin.bottom})`)
+          .call(d3.axisBottom(x));
+        svg
+          .append("g")
+          .attr("transform", `translate(${margin.left},0)`)
+          .call(d3.axisLeft(y));
+
+        svg
+          .append("g")
+          .selectAll("circle")
+          .data(atlasPoints)
+          .join("circle")
+          .attr("cx", (p) => x(p.x))
+          .attr("cy", (p) => y(p.y))
+          .attr("r", 4.5)
+          .attr("fill", (p) => color(p.cluster))
+          .attr("opacity", 0.72)
+          .on("pointerenter", (event, p) => {
+            tip.style.display = "block";
+            tip.innerHTML =
+              `<b>${p.id}</b><br><b>${formatSalary(p.salary)}</b>` +
+              `<br>Cluster ${p.cluster}: ${p.label ?? "unlabeled"}` +
+              `<br>x=${p.x.toFixed(3)}, y=${p.y.toFixed(3)}`;
+            positionTooltip(event);
+          })
+          .on("pointermove", positionTooltip)
+          .on("pointerleave", () => (tip.style.display = "none"));
+
+        const star = d3.symbol().type(d3.symbolStar).size(340);
+        svg
+          .append("path")
+          .attr("transform", `translate(${x(you.x)},${y(you.y)})`)
+          .attr("d", star)
+          .attr("fill", "#dc2626")
+          .attr("stroke", "#111827")
+          .attr("stroke-width", 2)
+          .on("pointerenter", (event) => {
+            tip.style.display = "block";
+            tip.innerHTML =
+              `<b>Your placed specialty</b><br><b>${formatSalary(you.salary)}</b>` +
+              `<br>x=${you.x.toFixed(3)}, y=${you.y.toFixed(3)}` +
+              `<br>Nearest: ${you.nearest.point.id} (${formatSalary(you.nearest.point.salary)}, cluster ${you.nearest.point.cluster})`;
+            positionTooltip(event);
+          })
+          .on("pointermove", positionTooltip)
+          .on("pointerleave", () => (tip.style.display = "none"));
+
+        const legend = d3.select("#legend");
+        legend.selectAll("*").remove();
+        clusters.forEach((cluster) => {
+          const info = clusterSummaryById.get(cluster);
+          const item = legend
+            .append("span")
+            .attr("class", "legend-item legend-clickable")
+            .attr("tabindex", "0")
+            .attr(
+              "title",
+              info
+                ? `Representative specialty for this cluster — click to place your sliders at ${titleCase(info.name)}'s values`
+                : "Click to place your sliders at this cluster's representative specialty",
+            )
+            .on("click", () => {
+              if (info) placeAtCluster(info);
+            })
+            .on("keydown", (event) => {
+              if (info && (event.key === "Enter" || event.key === " "))
+                placeAtCluster(info);
+            });
+          item
+            .append("span")
+            .attr("class", "legend-swatch")
+            .style("background", color(cluster));
+          item
+            .append("span")
+            .text(info ? titleCase(info.name) : `Cluster ${cluster}`);
+        });
+        const youItem = legend.append("span").attr("class", "legend-item");
+        youItem.append("span").attr("class", "legend-you");
+        youItem
+          .append("span")
+          .text("Your placed specialty (follows the sliders live)");
+      }
+
+      function nearest(point) {
+        let best = null,
+          bestDistance = Infinity;
+        for (const p of atlasPoints) {
+          const d2 = (p.x - point.x) ** 2 + (p.y - point.y) ** 2;
+          if (d2 < bestDistance) {
+            bestDistance = d2;
+            best = p;
+          }
+        }
+        return { point: best, distance: Math.sqrt(bestDistance) };
+      }
+
+      function update() {
+        const input = currentInput();
+        features.forEach((feature, i) => {
+          const raw = Number(document.getElementById(`f${i}`).value);
+          document.getElementById(`v${i}`).textContent = formatRaw(
+            feature,
+            raw,
+          );
+        });
+        const [px, py] = transformerForward(model, input);
+        const youSalary =
+          salaryFeatureIndex >= 0
+            ? Number(document.getElementById(`f${salaryFeatureIndex}`).value)
+            : null;
+        you = {
+          x: px,
+          y: py,
+          input,
+          nearest: nearest({ x: px, y: py }),
+          salary: youSalary,
+        };
+        const { point, distance } = you.nearest;
+        resultDiv.innerHTML =
+          `<b>Your specialty is placed at x=${px.toFixed(3)}, y=${py.toFixed(3)}</b>` +
+          `Nearest existing specialty: <b>${point.id}</b> ` +
+          `(cluster ${point.cluster}: ${point.label ?? "unlabeled"}), distance ${distance.toFixed(3)}`;
+        draw();
+      }
+
+      featuresDiv.addEventListener("input", () => update());
+      document.getElementById("reset").addEventListener("click", () => {
+        features.forEach((feature, i) => {
+          document.getElementById(`f${i}`).value = feature.raw_mean;
+        });
+        update();
+      });
+      new ResizeObserver(draw).observe(root);
+      update();
+    </script>
+  </body>
+</html>
