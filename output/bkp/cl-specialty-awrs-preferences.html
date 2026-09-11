@@ -1,0 +1,4312 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Transformer preference insertion</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 12px;
+        font: 15px system-ui;
+        color: #171717;
+      }
+      main {
+        max-width: 1200px;
+        margin: auto;
+      }
+      h1 {
+        font-size: 18px;
+        margin: 0 0 4px;
+      }
+      p.sub {
+        margin: 0 0 14px;
+        color: #444;
+        max-width: 900px;
+      }
+      .layout {
+        display: flex;
+        gap: 22px;
+        flex-wrap: wrap;
+        align-items: flex-start;
+      }
+      .panel {
+        flex: 1 1 360px;
+        min-width: 320px;
+        max-width: 420px;
+      }
+      .plot-wrap {
+        flex: 2 1 520px;
+        min-width: 320px;
+      }
+      svg {
+        width: 100%;
+        height: auto;
+      }
+      .feature-row {
+        margin-bottom: 14px;
+      }
+      .feature-row label {
+        display: flex;
+        justify-content: space-between;
+        font-weight: 600;
+        font-size: 13.5px;
+      }
+      .feature-row .meta {
+        font-weight: 400;
+        color: #555;
+        font-size: 12px;
+      }
+      .feature-row input[type="range"] {
+        width: 100%;
+      }
+      .feature-row .value {
+        font-variant-numeric: tabular-nums;
+      }
+      button {
+        font: inherit;
+        padding: 6px 12px;
+        border-radius: 6px;
+        border: 1px solid #999;
+        background: #f4f4f4;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #e8e8e8;
+      }
+      .result {
+        margin-top: 16px;
+        padding: 10px 12px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        background: #fafafa;
+        font-size: 13.5px;
+      }
+      .result b {
+        display: block;
+        margin-bottom: 4px;
+      }
+      .tip {
+        position: fixed;
+        display: none;
+        pointer-events: none;
+        max-width: min(420px, calc(100vw - 24px));
+        box-sizing: border-box;
+        background: white;
+        border: 1px solid #888;
+        padding: 8px 10px;
+        line-height: 1.4;
+        z-index: 10;
+        font-size: 13px;
+      }
+      .tip b {
+        display: block;
+        margin-bottom: 2px;
+      }
+      .legend {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-top: 8px;
+        font-size: 13px;
+      }
+      .legend-hint {
+        margin: 6px 0 0;
+        font-size: 12.5px;
+        color: #666;
+      }
+      .legend-item {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .legend-clickable {
+        cursor: pointer;
+        padding: 2px 6px;
+        border-radius: 4px;
+        border: 1px solid transparent;
+      }
+      .legend-clickable:hover {
+        background: #f0f4ff;
+        border-color: #c7d6ff;
+      }
+      .legend-clickable:focus-visible {
+        outline: 2px solid #2563eb;
+        outline-offset: 1px;
+      }
+      .legend-swatch {
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        display: inline-block;
+      }
+      .legend-you {
+        /* Matches the plot's d3.symbolStar marker (a 5-point star), not a
+           pentagon, so the legend key and the plotted symbol agree. */
+        width: 15px;
+        height: 15px;
+        display: inline-block;
+        background: #dc2626;
+        border: 2px solid #111827;
+        clip-path: polygon(
+          50% 0%,
+          61% 35%,
+          98% 35%,
+          68% 57%,
+          79% 91%,
+          50% 70%,
+          21% 91%,
+          32% 57%,
+          2% 35%,
+          39% 35%
+        );
+      }
+    </style>
+  </head>
+  <body>
+    <main id="app">
+      <h1>Insert your own preferences into the AWRS-SMC atlas</h1>
+      <p class="sub">
+        Move the sliders below and the trained Transformer
+        (<code>smc-trainer/transformer.lisp</code>) places your preferred
+        specialty on the atlas live — the red star is your placement, and it
+        moves the instant you touch a slider; wherever the sliders sit right now
+        <b>is</b> where your specialty is placed. Each cluster in the legend is
+        labeled with the specialty closest to its center, as a
+        <i>representative example</i> — the cluster is the whole group of
+        similar specialties, not just the one lending its name. Click a
+        cluster's name to jump every slider to that representative specialty's
+        own values. The prediction runs entirely in this page (a JavaScript port
+        of <code>transformer-forward</code>) using the model exactly as trained.
+      </p>
+      <div class="layout">
+        <div class="panel">
+          <div id="features"></div>
+          <button id="reset">Reset to typical values</button>
+          <div class="result" id="result"></div>
+        </div>
+        <div class="plot-wrap">
+          <svg role="img"></svg>
+          <div class="legend" id="legend"></div>
+          <p class="legend-hint">
+            Click a cluster's name above to jump every slider to that cluster's
+            representative specialty.
+          </p>
+        </div>
+      </div>
+      <div class="tip"></div>
+    </main>
+    <script type="module">
+      import * as d3 from "https://esm.sh/d3@7.9.0";
+
+      // ---- Embedded data, written by
+      // smc-trainer/demo/build-preferences-page.lisp ----
+      const atlasPoints = [
+        {
+          id: "allergy-and-immunology",
+          group: "allergy-and-immunology",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 3.235813619972389,
+          y: -1.1185964087305265,
+          salary: 368000.0,
+        },
+        {
+          id: "anesthesiology",
+          group: "anesthesiology",
+          label: "Cluster 2: research-light + procedure-oriented",
+          cluster: 1,
+          x: 0.48474216703560125,
+          y: 3.2936388347845913,
+          salary: 570000.0,
+        },
+        {
+          id: "colon-and-rectal-surgery",
+          group: "colon-and-rectal-surgery",
+          label: "Cluster 3: procedure-oriented + long training",
+          cluster: 1,
+          x: -0.2835662009952622,
+          y: 4.7421519355685255,
+          salary: 513000.0,
+        },
+        {
+          id: "dermatology",
+          group: "dermatology",
+          label: "Unclustered",
+          cluster: 1,
+          x: 0.7218539317722168,
+          y: 3.9174373839204364,
+          salary: 536000.0,
+        },
+        {
+          id: "emergency-medicine",
+          group: "emergency-medicine",
+          label: "Cluster 4: short training + research-light",
+          cluster: 2,
+          x: 1.9230766957333385,
+          y: 2.669022728743094,
+          salary: 440000.0,
+        },
+        {
+          id: "family-medicine",
+          group: "family-medicine",
+          label: "Cluster 4: short training + research-light",
+          cluster: 2,
+          x: 2.46362699446841,
+          y: 2.573552118012703,
+          salary: 314000.0,
+        },
+        {
+          id: "internal-medicine",
+          group: "internal-medicine",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 2.6414895580595004,
+          y: 0.3684447237862875,
+          salary: 327000.0,
+        },
+        {
+          id: "medical-genetics-and-genomics",
+          group: "medical-genetics-and-genomics",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 4.2437415127880715,
+          y: 0.010447402851474226,
+          salary: 240000.0,
+        },
+        {
+          id: "clinical-biochemical-genetics",
+          group: "clinical-biochemical-genetics",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 4.1460333729596694,
+          y: -0.01696994838550804,
+          salary: 240000.0,
+        },
+        {
+          id: "laboratory-genetics-and-genomics",
+          group: "laboratory-genetics-and-genomics",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 4.197026392917013,
+          y: -0.03645474650891394,
+          salary: 240000.0,
+        },
+        {
+          id: "neurological-surgery",
+          group: "neurological-surgery",
+          label: "Cluster 5: higher compensation + high clinical intensity",
+          cluster: 3,
+          x: -3.431940372645035,
+          y: 2.5874205033265048,
+          salary: 988000.0,
+        },
+        {
+          id: "neurology",
+          group: "neurology",
+          label:
+            "Cluster 6: high clinical intensity + higher female representation",
+          cluster: 4,
+          x: -3.820343706239173,
+          y: 1.1029181138230097,
+          salary: 370000.0,
+        },
+        {
+          id: "child-neurology",
+          group: "child-neurology",
+          label:
+            "Cluster 6: high clinical intensity + higher female representation",
+          cluster: 4,
+          x: -4.495789590271843,
+          y: 0.7874617125884232,
+          salary: 370000.0,
+        },
+        {
+          id: "nuclear-medicine",
+          group: "nuclear-medicine",
+          label:
+            "Cluster 6: high clinical intensity + higher female representation",
+          cluster: 4,
+          x: -3.9195310599068134,
+          y: 0.9012491262323693,
+          salary: 376000.0,
+        },
+        {
+          id: "obstetrics-and-gynecology",
+          group: "obstetrics-and-gynecology",
+          label:
+            "Cluster 6: high clinical intensity + higher female representation",
+          cluster: 5,
+          x: -5.195541364632361,
+          y: 1.0019786627023057,
+          salary: 410000.0,
+        },
+        {
+          id: "ophthalmology",
+          group: "ophthalmology",
+          label: "Cluster 5: higher compensation + high clinical intensity",
+          cluster: 3,
+          x: -3.958624298789249,
+          y: 1.9408006357387628,
+          salary: 553000.0,
+        },
+        {
+          id: "orthopaedic-surgery",
+          group: "orthopaedic-surgery",
+          label: "Cluster 5: higher compensation + high clinical intensity",
+          cluster: 3,
+          x: -3.692037166898936,
+          y: 2.748170777093236,
+          salary: 801000.0,
+        },
+        {
+          id: "osteopathic-neuromusculoskeletal-medicine",
+          group: "osteopathic-neuromusculoskeletal-medicine",
+          label: "Cluster 4: short training + research-light",
+          cluster: -1,
+          x: 2.5230601108088435,
+          y: 2.117550734695648,
+          salary: 242000.0,
+        },
+        {
+          id: "otolaryngology-head-and-neck-surgery",
+          group: "otolaryngology-head-and-neck-surgery",
+          label: "Cluster 3: procedure-oriented + long training",
+          cluster: 1,
+          x: 0.18517486234218,
+          y: 4.311304797924015,
+          salary: 613000.0,
+        },
+        {
+          id: "pathology-anatomic-and-clinical",
+          group: "pathology-anatomic-and-clinical",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 2.980060973990629,
+          y: -0.699179224214346,
+          salary: 409000.0,
+        },
+        {
+          id: "pediatrics",
+          group: "pediatrics",
+          label: "Unclustered",
+          cluster: -1,
+          x: 4.56735054925392,
+          y: 2.4546808720734896,
+          salary: 265000.0,
+        },
+        {
+          id: "physical-medicine-and-rehabilitation",
+          group: "physical-medicine-and-rehabilitation",
+          label: "Cluster 4: short training + research-light",
+          cluster: 2,
+          x: 1.7780517835970948,
+          y: 2.742143226711841,
+          salary: 348000.0,
+        },
+        {
+          id: "plastic-surgery",
+          group: "plastic-surgery",
+          label: "Cluster 2: research-light + procedure-oriented",
+          cluster: 1,
+          x: -0.13074853504216452,
+          y: 3.3622841733212687,
+          salary: 725000.0,
+        },
+        {
+          id: "plastic-surgery-integrated",
+          group: "plastic-surgery-integrated",
+          label: "Cluster 2: research-light + procedure-oriented",
+          cluster: 1,
+          x: -0.12228291467764939,
+          y: 3.3470914298715497,
+          salary: 725000.0,
+        },
+        {
+          id: "public-health-and-general-preventive-medicine",
+          group: "public-health-and-general-preventive-medicine",
+          label: "Unclustered",
+          cluster: 2,
+          x: 2.276988248225882,
+          y: 2.6153146545301498,
+          salary: 365000.0,
+        },
+        {
+          id: "aerospace-medicine",
+          group: "aerospace-medicine",
+          label: "Unclustered",
+          cluster: 2,
+          x: 2.206874875384095,
+          y: 2.6273722469752556,
+          salary: 365000.0,
+        },
+        {
+          id: "occupational-and-environmental-medicine",
+          group: "occupational-and-environmental-medicine",
+          label: "Cluster 4: short training + research-light",
+          cluster: 2,
+          x: 2.1676427462946704,
+          y: 2.6516159738647707,
+          salary: 365000.0,
+        },
+        {
+          id: "psychiatry",
+          group: "psychiatry",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 3.557775713247181,
+          y: 1.3483188280383402,
+          salary: 351000.0,
+        },
+        {
+          id: "radiation-oncology",
+          group: "radiation-oncology",
+          label: "Unclustered",
+          cluster: 1,
+          x: 0.42862267167847945,
+          y: 4.1599017369234,
+          salary: 647000.0,
+        },
+        {
+          id: "diagnostic-radiology",
+          group: "diagnostic-radiology",
+          label: "Cluster 5: higher compensation + high clinical intensity",
+          cluster: 3,
+          x: -3.3505568044912555,
+          y: 1.9515722099674313,
+          salary: 691000.0,
+        },
+        {
+          id: "interventional-radiology-independent",
+          group: "interventional-radiology-independent",
+          label: "Cluster 5: higher compensation + high clinical intensity",
+          cluster: 3,
+          x: -2.921113407505576,
+          y: 2.008439298281269,
+          salary: 691000.0,
+        },
+        {
+          id: "interventional-radiology-integrated",
+          group: "interventional-radiology-integrated",
+          label: "Cluster 5: higher compensation + high clinical intensity",
+          cluster: 3,
+          x: -3.1811784975931765,
+          y: 2.1960774955073266,
+          salary: 691000.0,
+        },
+        {
+          id: "general-surgery",
+          group: "general-surgery",
+          label: "Unclustered",
+          cluster: -1,
+          x: -0.24504890911103647,
+          y: 2.246908615948637,
+          salary: 513000.0,
+        },
+        {
+          id: "vascular-surgery-integrated",
+          group: "vascular-surgery-integrated",
+          label: "Cluster 3: procedure-oriented + long training",
+          cluster: 1,
+          x: -0.025159468739376967,
+          y: 4.3696262321721475,
+          salary: 513000.0,
+        },
+        {
+          id: "thoracic-surgery-independent",
+          group: "thoracic-surgery-independent",
+          label: "Cluster 3: procedure-oriented + long training",
+          cluster: 1,
+          x: -0.1524500914077413,
+          y: 4.983010424530591,
+          salary: 513000.0,
+        },
+        {
+          id: "thoracic-surgery-integrated",
+          group: "thoracic-surgery-integrated",
+          label: "Cluster 3: procedure-oriented + long training",
+          cluster: 1,
+          x: -0.11089046748484437,
+          y: 4.618983482941675,
+          salary: 513000.0,
+        },
+        {
+          id: "urology",
+          group: "urology",
+          label: "Cluster 5: higher compensation + high clinical intensity",
+          cluster: 3,
+          x: -3.738940470976481,
+          y: 2.1204829126357554,
+          salary: 639000.0,
+        },
+        {
+          id: "internal-medicine-pediatrics",
+          group: "internal-medicine-pediatrics",
+          label: "Unclustered",
+          cluster: -1,
+          x: 4.389111677689289,
+          y: 2.2460443593342236,
+          salary: 265000.0,
+        },
+        {
+          id: "adult-cardiothoracic-anesthesiology",
+          group: "adult-cardiothoracic-anesthesiology",
+          label: "Cluster 2: research-light + procedure-oriented",
+          cluster: 1,
+          x: 0.38988094944496954,
+          y: 3.667740511179334,
+          salary: 570000.0,
+        },
+        {
+          id: "anesthesiology-critical-care-medicine",
+          group: "anesthesiology-critical-care-medicine",
+          label: "Cluster 2: research-light + procedure-oriented",
+          cluster: 1,
+          x: 0.4410689728494498,
+          y: 3.5948130320112983,
+          salary: 570000.0,
+        },
+        {
+          id: "obstetric-anesthesiology",
+          group: "obstetric-anesthesiology",
+          label:
+            "Cluster 6: high clinical intensity + higher female representation",
+          cluster: 5,
+          x: -5.057190556282855,
+          y: 1.16082956375211,
+          salary: 570000.0,
+        },
+        {
+          id: "pain-medicine",
+          group: "pain-medicine",
+          label: "Cluster 4: short training + research-light",
+          cluster: 2,
+          x: 1.8060152884219276,
+          y: 2.715130484811546,
+          salary: 348000.0,
+        },
+        {
+          id: "pediatric-anesthesiology",
+          group: "pediatric-anesthesiology",
+          label: "Cluster 2: research-light + procedure-oriented",
+          cluster: 1,
+          x: 0.133424138050067,
+          y: 3.623650541832685,
+          salary: 570000.0,
+        },
+        {
+          id: "pediatric-cardiac-anesthesiology",
+          group: "pediatric-cardiac-anesthesiology",
+          label: "Cluster 2: research-light + procedure-oriented",
+          cluster: 1,
+          x: 0.37877041633750064,
+          y: 3.551033329031942,
+          salary: 570000.0,
+        },
+        {
+          id: "regional-anesthesiology-and-acute-pain-medicine",
+          group: "regional-anesthesiology-and-acute-pain-medicine",
+          label: "Cluster 2: research-light + procedure-oriented",
+          cluster: 1,
+          x: 0.3129914413279877,
+          y: 3.5123535085426942,
+          salary: 570000.0,
+        },
+        {
+          id: "dermatopathology",
+          group: "dermatopathology",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 3.2460221666399223,
+          y: -0.31761017765535543,
+          salary: 536000.0,
+        },
+        {
+          id: "micrographic-surgery-and-dermatologic-oncology",
+          group: "micrographic-surgery-and-dermatologic-oncology",
+          label: "Unclustered",
+          cluster: 1,
+          x: 0.3516580854228135,
+          y: 4.092476430487925,
+          salary: 536000.0,
+        },
+        {
+          id: "pediatric-dermatology",
+          group: "pediatric-dermatology",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 2.774484653679416,
+          y: -1.416850385369896,
+          salary: 536000.0,
+        },
+        {
+          id: "emergency-medical-services",
+          group: "emergency-medical-services",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 2.7724604412964906,
+          y: 0.7262954476073304,
+          salary: 440000.0,
+        },
+        {
+          id: "medical-toxicology",
+          group: "medical-toxicology",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 3.0824347228203988,
+          y: 0.6765091940163275,
+          salary: 440000.0,
+        },
+        {
+          id: "pediatric-emergency-medicine",
+          group: "pediatric-emergency-medicine",
+          label: "Cluster 9: higher female representation + lower compensation",
+          cluster: 6,
+          x: 4.708307868037525,
+          y: 2.872392846212586,
+          salary: 265000.0,
+        },
+        {
+          id: "sports-medicine",
+          group: "sports-medicine",
+          label: "Cluster 5: higher compensation + high clinical intensity",
+          cluster: 3,
+          x: -3.488461210342272,
+          y: 2.2369209564693655,
+          salary: 801000.0,
+        },
+        {
+          id: "undersea-and-hyperbaric-medicine",
+          group: "undersea-and-hyperbaric-medicine",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 2.84623700623153,
+          y: 0.4919076888747045,
+          salary: 440000.0,
+        },
+        {
+          id: "clinical-informatics",
+          group: "clinical-informatics",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 2.9111175326683343,
+          y: 1.1003654941894332,
+          salary: 327000.0,
+        },
+        {
+          id: "geriatric-medicine",
+          group: "geriatric-medicine",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 3.9876727292356233,
+          y: 0.2760651435692884,
+          salary: 327000.0,
+        },
+        {
+          id: "hospice-and-palliative-medicine",
+          group: "hospice-and-palliative-medicine",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 3.7309522983386083,
+          y: 0.7129458742857191,
+          salary: 327000.0,
+        },
+        {
+          id: "cardiology",
+          group: "cardiology",
+          label: "Cluster 7: employment-oriented + long training",
+          cluster: 7,
+          x: -1.6112841603756087,
+          y: 1.5770869694532623,
+          salary: 634000.0,
+        },
+        {
+          id: "adult-congenital-heart-disease",
+          group: "adult-congenital-heart-disease",
+          label: "Cluster 7: employment-oriented + long training",
+          cluster: 7,
+          x: -1.4625902063926335,
+          y: 1.5334882081974612,
+          salary: 634000.0,
+        },
+        {
+          id: "advanced-heart-failure-and-transplant-cardiology",
+          group: "advanced-heart-failure-and-transplant-cardiology",
+          label: "Cluster 7: employment-oriented + long training",
+          cluster: 7,
+          x: -1.6990616727048156,
+          y: 1.6195101263301057,
+          salary: 634000.0,
+        },
+        {
+          id: "cardiac-electrophysiology",
+          group: "cardiac-electrophysiology",
+          label: "Cluster 7: employment-oriented + long training",
+          cluster: 7,
+          x: -1.8174676264062752,
+          y: 1.729124843801081,
+          salary: 634000.0,
+        },
+        {
+          id: "interventional-cardiology",
+          group: "interventional-cardiology",
+          label: "Cluster 7: employment-oriented + long training",
+          cluster: 7,
+          x: -1.8681009642184296,
+          y: 1.6724268559922733,
+          salary: 634000.0,
+        },
+        {
+          id: "internal-medicine-critical-care-medicine",
+          group: "internal-medicine-critical-care-medicine",
+          label:
+            "Cluster 8: higher physician availability + more competitive training",
+          cluster: 8,
+          x: 0.3852355594155138,
+          y: 1.4763980470350027,
+          salary: 327000.0,
+        },
+        {
+          id: "endocrinology-diabetes-and-metabolism",
+          group: "endocrinology-diabetes-and-metabolism",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 3.5580815621381836,
+          y: -1.2127702321281248,
+          salary: 320000.0,
+        },
+        {
+          id: "gastroenterology",
+          group: "gastroenterology",
+          label: "Cluster 7: employment-oriented + long training",
+          cluster: 7,
+          x: -1.2091145876763623,
+          y: 1.852939580349288,
+          salary: 626000.0,
+        },
+        {
+          id: "hematology-and-medical-oncology",
+          group: "hematology-and-medical-oncology",
+          label:
+            "Cluster 8: higher physician availability + more competitive training",
+          cluster: 8,
+          x: -0.1789130737123241,
+          y: 1.4125812502271973,
+          salary: 587000.0,
+        },
+        {
+          id: "infectious-disease",
+          group: "infectious-disease",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 3.47351413763427,
+          y: 0.3741677575913361,
+          salary: 321000.0,
+        },
+        {
+          id: "interventional-pulmonology",
+          group: "interventional-pulmonology",
+          label: "Cluster 3: procedure-oriented + long training",
+          cluster: 1,
+          x: -0.10168969153647749,
+          y: 4.976256367546626,
+          salary: 484000.0,
+        },
+        {
+          id: "medical-oncology",
+          group: "medical-oncology",
+          label: "Unclustered",
+          cluster: 8,
+          x: 0.08903371566554302,
+          y: 1.1534885782216993,
+          salary: 638000.0,
+        },
+        {
+          id: "nephrology",
+          group: "nephrology",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 3.01770821044406,
+          y: 0.7517558218259133,
+          salary: 385000.0,
+        },
+        {
+          id: "pulmonary-disease",
+          group: "pulmonary-disease",
+          label:
+            "Cluster 8: higher physician availability + more competitive training",
+          cluster: 8,
+          x: 0.10162093119387497,
+          y: 1.3408683626168934,
+          salary: 484000.0,
+        },
+        {
+          id: "pulmonary-disease-and-critical-care-medicine",
+          group: "pulmonary-disease-and-critical-care-medicine",
+          label:
+            "Cluster 8: higher physician availability + more competitive training",
+          cluster: 8,
+          x: -0.15192189587595573,
+          y: 1.7158846311095566,
+          salary: 484000.0,
+        },
+        {
+          id: "rheumatology",
+          group: "rheumatology",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 3.442424880625283,
+          y: -1.0855163253104452,
+          salary: 318000.0,
+        },
+        {
+          id: "sleep-medicine",
+          group: "sleep-medicine",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 3.411713870094056,
+          y: -0.6132609798747503,
+          salary: 327000.0,
+        },
+        {
+          id: "transplant-hepatology",
+          group: "transplant-hepatology",
+          label:
+            "Cluster 8: higher physician availability + more competitive training",
+          cluster: 8,
+          x: -0.7259378478710349,
+          y: 1.3879438394934862,
+          salary: 459000.0,
+        },
+        {
+          id: "medical-biochemical-genetics",
+          group: "medical-biochemical-genetics",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 4.231159926203041,
+          y: -0.032819648193605035,
+          salary: 240000.0,
+        },
+        {
+          id: "molecular-genetic-pathology",
+          group: "molecular-genetic-pathology",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 3.63572956920936,
+          y: -0.2234594800756286,
+          salary: 240000.0,
+        },
+        {
+          id: "clinical-neurophysiology",
+          group: "clinical-neurophysiology",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 3.2254776619757664,
+          y: -0.38146549232005844,
+          salary: 370000.0,
+        },
+        {
+          id: "epilepsy",
+          group: "epilepsy",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 3.3682754795692413,
+          y: -0.07786926613907964,
+          salary: 370000.0,
+        },
+        {
+          id: "neurocritical-care",
+          group: "neurocritical-care",
+          label:
+            "Cluster 8: higher physician availability + more competitive training",
+          cluster: 0,
+          x: 2.4949522546990925,
+          y: 1.1128666339405553,
+          salary: 370000.0,
+        },
+        {
+          id: "neurodevelopmental-disabilities",
+          group: "neurodevelopmental-disabilities",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 3.2997826677221123,
+          y: -1.268462200753673,
+          salary: 327000.0,
+        },
+        {
+          id: "neuromuscular-medicine",
+          group: "neuromuscular-medicine",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 3.480202068973073,
+          y: -0.45426563457215097,
+          salary: 370000.0,
+        },
+        {
+          id: "vascular-neurology",
+          group: "vascular-neurology",
+          label:
+            "Cluster 6: high clinical intensity + higher female representation",
+          cluster: 4,
+          x: -4.167558042262161,
+          y: 0.9637909734255521,
+          salary: 370000.0,
+        },
+        {
+          id: "complex-family-planning",
+          group: "complex-family-planning",
+          label:
+            "Cluster 6: high clinical intensity + higher female representation",
+          cluster: 5,
+          x: -5.543409779250392,
+          y: 0.8924015574005812,
+          salary: 410000.0,
+        },
+        {
+          id: "gynecologic-oncology",
+          group: "gynecologic-oncology",
+          label:
+            "Cluster 6: high clinical intensity + higher female representation",
+          cluster: 5,
+          x: -5.253337097007093,
+          y: 0.9013902929291678,
+          salary: 410000.0,
+        },
+        {
+          id: "maternal-fetal-medicine",
+          group: "maternal-fetal-medicine",
+          label:
+            "Cluster 6: high clinical intensity + higher female representation",
+          cluster: 5,
+          x: -5.327930342052098,
+          y: 0.8391685250686061,
+          salary: 410000.0,
+        },
+        {
+          id: "reproductive-endocrinology-and-infertility",
+          group: "reproductive-endocrinology-and-infertility",
+          label: "Cluster 3: procedure-oriented + long training",
+          cluster: 1,
+          x: -0.6212260377147908,
+          y: 4.3551525885079325,
+          salary: 410000.0,
+        },
+        {
+          id: "urogynecology-and-reconstructive-pelvic-surgery",
+          group: "urogynecology-and-reconstructive-pelvic-surgery",
+          label:
+            "Cluster 6: high clinical intensity + higher female representation",
+          cluster: 5,
+          x: -5.32275106856148,
+          y: 0.8046999489181256,
+          salary: 410000.0,
+        },
+        {
+          id: "ophthalmic-plastic-and-reconstructive-surgery",
+          group: "ophthalmic-plastic-and-reconstructive-surgery",
+          label: "Unclustered",
+          cluster: 5,
+          x: -5.3678844844637394,
+          y: 0.7692923211553742,
+          salary: 553000.0,
+        },
+        {
+          id: "adult-reconstructive-orthopaedics",
+          group: "adult-reconstructive-orthopaedics",
+          label: "Cluster 5: higher compensation + high clinical intensity",
+          cluster: 3,
+          x: -3.369855609677245,
+          y: 2.679827584228716,
+          salary: 801000.0,
+        },
+        {
+          id: "foot-and-ankle-orthopaedics",
+          group: "foot-and-ankle-orthopaedics",
+          label: "Cluster 5: higher compensation + high clinical intensity",
+          cluster: 3,
+          x: -3.383319726143363,
+          y: 2.6113669401927337,
+          salary: 801000.0,
+        },
+        {
+          id: "hand-surgery",
+          group: "hand-surgery",
+          label: "Cluster 5: higher compensation + high clinical intensity",
+          cluster: 3,
+          x: -3.8342778889684865,
+          y: 2.5258175147156265,
+          salary: 801000.0,
+        },
+        {
+          id: "musculoskeletal-oncology",
+          group: "musculoskeletal-oncology",
+          label: "Cluster 2: research-light + procedure-oriented",
+          cluster: 1,
+          x: -0.04266359897465368,
+          y: 3.846803591388493,
+          salary: 801000.0,
+        },
+        {
+          id: "orthopaedic-sports-medicine",
+          group: "orthopaedic-sports-medicine",
+          label: "Cluster 5: higher compensation + high clinical intensity",
+          cluster: 3,
+          x: -3.3264272033958546,
+          y: 2.5459871417541766,
+          salary: 801000.0,
+        },
+        {
+          id: "orthopaedic-surgery-of-the-spine",
+          group: "orthopaedic-surgery-of-the-spine",
+          label: "Cluster 5: higher compensation + high clinical intensity",
+          cluster: 3,
+          x: -3.250815925592915,
+          y: 2.8098462847314725,
+          salary: 801000.0,
+        },
+        {
+          id: "orthopaedic-trauma",
+          group: "orthopaedic-trauma",
+          label: "Cluster 5: higher compensation + high clinical intensity",
+          cluster: 3,
+          x: -3.5409761417798196,
+          y: 2.729878568649544,
+          salary: 801000.0,
+        },
+        {
+          id: "pediatric-orthopaedics",
+          group: "pediatric-orthopaedics",
+          label: "Cluster 5: higher compensation + high clinical intensity",
+          cluster: 3,
+          x: -3.1962853241101548,
+          y: 2.570499405400097,
+          salary: 801000.0,
+        },
+        {
+          id: "neurotology",
+          group: "neurotology",
+          label: "Cluster 3: procedure-oriented + long training",
+          cluster: 1,
+          x: -0.2512087895259418,
+          y: 4.407306319419618,
+          salary: 613000.0,
+        },
+        {
+          id: "pediatric-otolaryngology",
+          group: "pediatric-otolaryngology",
+          label: "Cluster 3: procedure-oriented + long training",
+          cluster: 1,
+          x: -0.22104784566372676,
+          y: 4.2051292905621915,
+          salary: 613000.0,
+        },
+        {
+          id: "blood-banking-transfusion-medicine",
+          group: "blood-banking-transfusion-medicine",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 2.5354429234365656,
+          y: -0.09773956664927984,
+          salary: 409000.0,
+        },
+        {
+          id: "chemical-pathology",
+          group: "chemical-pathology",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 2.7338689157597735,
+          y: -0.09551010183444845,
+          salary: 409000.0,
+        },
+        {
+          id: "cytopathology",
+          group: "cytopathology",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 2.874221251397618,
+          y: -0.9440594503147092,
+          salary: 409000.0,
+        },
+        {
+          id: "forensic-pathology",
+          group: "forensic-pathology",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 3.777876421510134,
+          y: -0.08423255990941941,
+          salary: 409000.0,
+        },
+        {
+          id: "hematopathology",
+          group: "hematopathology",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 3.1823303900244118,
+          y: -0.2591602009555102,
+          salary: 409000.0,
+        },
+        {
+          id: "medical-microbiology",
+          group: "medical-microbiology",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 3.162039820276237,
+          y: -1.3595988311501324,
+          salary: 409000.0,
+        },
+        {
+          id: "neuropathology",
+          group: "neuropathology",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 2.9297834550854,
+          y: -0.7007833824310001,
+          salary: 409000.0,
+        },
+        {
+          id: "pediatric-pathology",
+          group: "pediatric-pathology",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 2.519354848724128,
+          y: -0.02266536925233386,
+          salary: 409000.0,
+        },
+        {
+          id: "selective-pathology",
+          group: "selective-pathology",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 2.910484708346099,
+          y: -0.6018631922873258,
+          salary: 409000.0,
+        },
+        {
+          id: "adolescent-medicine",
+          group: "adolescent-medicine",
+          label: "Cluster 9: higher female representation + lower compensation",
+          cluster: 6,
+          x: 5.4569640401134745,
+          y: 3.2377407107391614,
+          salary: 265000.0,
+        },
+        {
+          id: "child-abuse-pediatrics",
+          group: "child-abuse-pediatrics",
+          label: "Cluster 9: higher female representation + lower compensation",
+          cluster: 6,
+          x: 5.359829401214774,
+          y: 3.336295086647308,
+          salary: 265000.0,
+        },
+        {
+          id: "developmental-behavioral-pediatrics",
+          group: "developmental-behavioral-pediatrics",
+          label: "Cluster 9: higher female representation + lower compensation",
+          cluster: 6,
+          x: 5.226667117044418,
+          y: 2.8739427372739743,
+          salary: 265000.0,
+        },
+        {
+          id: "neonatal-perinatal-medicine",
+          group: "neonatal-perinatal-medicine",
+          label: "Cluster 9: higher female representation + lower compensation",
+          cluster: 6,
+          x: 4.9625312381153925,
+          y: 3.1837572239768352,
+          salary: 265000.0,
+        },
+        {
+          id: "pediatric-cardiology",
+          group: "pediatric-cardiology",
+          label:
+            "Cluster 8: higher physician availability + more competitive training",
+          cluster: 7,
+          x: -1.3168183501620552,
+          y: 1.7271644267581887,
+          salary: 634000.0,
+        },
+        {
+          id: "pediatric-critical-care-medicine",
+          group: "pediatric-critical-care-medicine",
+          label: "Cluster 9: higher female representation + lower compensation",
+          cluster: 6,
+          x: 4.759313762013113,
+          y: 3.1205691137837333,
+          salary: 265000.0,
+        },
+        {
+          id: "pediatric-endocrinology",
+          group: "pediatric-endocrinology",
+          label: "Cluster 9: higher female representation + lower compensation",
+          cluster: 6,
+          x: 5.323991333107653,
+          y: 3.371330937561755,
+          salary: 265000.0,
+        },
+        {
+          id: "pediatric-gastroenterology",
+          group: "pediatric-gastroenterology",
+          label: "Cluster 7: employment-oriented + long training",
+          cluster: 7,
+          x: -1.2717339133865573,
+          y: 1.8749591647150232,
+          salary: 626000.0,
+        },
+        {
+          id: "pediatric-hematology-oncology",
+          group: "pediatric-hematology-oncology",
+          label: "Cluster 9: higher female representation + lower compensation",
+          cluster: 6,
+          x: 5.0749116091412265,
+          y: 2.9457387389833882,
+          salary: 265000.0,
+        },
+        {
+          id: "pediatric-infectious-diseases",
+          group: "pediatric-infectious-diseases",
+          label: "Cluster 9: higher female representation + lower compensation",
+          cluster: 6,
+          x: 5.441868791450619,
+          y: 3.178702532488914,
+          salary: 321000.0,
+        },
+        {
+          id: "pediatric-nephrology",
+          group: "pediatric-nephrology",
+          label: "Cluster 9: higher female representation + lower compensation",
+          cluster: 6,
+          x: 5.651605038201247,
+          y: 2.9956276650595304,
+          salary: 385000.0,
+        },
+        {
+          id: "pediatric-pulmonology",
+          group: "pediatric-pulmonology",
+          label: "Cluster 9: higher female representation + lower compensation",
+          cluster: 6,
+          x: 5.117069667441124,
+          y: 3.157422577353844,
+          salary: 265000.0,
+        },
+        {
+          id: "pediatric-rheumatology",
+          group: "pediatric-rheumatology",
+          label: "Cluster 9: higher female representation + lower compensation",
+          cluster: 6,
+          x: 5.50361288737511,
+          y: 3.085668285659421,
+          salary: 318000.0,
+        },
+        {
+          id: "pediatric-transplant-hepatology",
+          group: "pediatric-transplant-hepatology",
+          label: "Cluster 9: higher female representation + lower compensation",
+          cluster: 6,
+          x: 5.635328726915385,
+          y: 2.9549041991331384,
+          salary: 459000.0,
+        },
+        {
+          id: "pediatric-hospital-medicine",
+          group: "pediatric-hospital-medicine",
+          label: "Cluster 9: higher female representation + lower compensation",
+          cluster: 6,
+          x: 4.92505473276694,
+          y: 2.99451430769525,
+          salary: 265000.0,
+        },
+        {
+          id: "brain-injury-medicine",
+          group: "brain-injury-medicine",
+          label: "Cluster 4: short training + research-light",
+          cluster: -1,
+          x: 2.3163229863285815,
+          y: 2.2102190534344093,
+          salary: 348000.0,
+        },
+        {
+          id: "spinal-cord-injury-medicine",
+          group: "spinal-cord-injury-medicine",
+          label: "Cluster 4: short training + research-light",
+          cluster: -1,
+          x: 2.4856769550699247,
+          y: 2.205041396131989,
+          salary: 348000.0,
+        },
+        {
+          id: "pediatric-rehabilitation-medicine",
+          group: "pediatric-rehabilitation-medicine",
+          label: "Cluster 9: higher female representation + lower compensation",
+          cluster: 6,
+          x: 5.380568120160204,
+          y: 3.1607998100179397,
+          salary: 265000.0,
+        },
+        {
+          id: "craniofacial-surgery",
+          group: "craniofacial-surgery",
+          label: "Cluster 2: research-light + procedure-oriented",
+          cluster: 1,
+          x: -0.06489001032856002,
+          y: 3.298457568926477,
+          salary: 725000.0,
+        },
+        {
+          id: "addiction-medicine",
+          group: "addiction-medicine",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 3.6676969568108424,
+          y: 1.112990531583799,
+          salary: 327000.0,
+        },
+        {
+          id: "addiction-psychiatry",
+          group: "addiction-psychiatry",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 3.0612484107193767,
+          y: 1.1367558555733568,
+          salary: 351000.0,
+        },
+        {
+          id: "child-and-adolescent-psychiatry",
+          group: "child-and-adolescent-psychiatry",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 3.8684344190073165,
+          y: 1.5569290572142986,
+          salary: 265000.0,
+        },
+        {
+          id: "forensic-psychiatry",
+          group: "forensic-psychiatry",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 3.1899603179399962,
+          y: 1.2375406925754842,
+          salary: 351000.0,
+        },
+        {
+          id: "geriatric-psychiatry",
+          group: "geriatric-psychiatry",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 3.307802512583254,
+          y: -1.0357618784073541,
+          salary: 351000.0,
+        },
+        {
+          id: "consultation-liaison-psychiatry",
+          group: "consultation-liaison-psychiatry",
+          label: "Cluster 1: predominantly clinical + research-intensive",
+          cluster: 0,
+          x: 3.265213884418003,
+          y: 1.3381203128529071,
+          salary: 351000.0,
+        },
+        {
+          id: "abdominal-radiology",
+          group: "abdominal-radiology",
+          label: "Cluster 5: higher compensation + high clinical intensity",
+          cluster: 3,
+          x: -3.2223315762522415,
+          y: 1.5801406772771809,
+          salary: 691000.0,
+        },
+        {
+          id: "musculoskeletal-radiology",
+          group: "musculoskeletal-radiology",
+          label: "Cluster 5: higher compensation + high clinical intensity",
+          cluster: 3,
+          x: -3.0861436614469864,
+          y: 1.693863548876641,
+          salary: 691000.0,
+        },
+        {
+          id: "neuroradiology",
+          group: "neuroradiology",
+          label: "Cluster 5: higher compensation + high clinical intensity",
+          cluster: 3,
+          x: -3.1004561714700416,
+          y: 1.8732473582020506,
+          salary: 691000.0,
+        },
+        {
+          id: "nuclear-radiology",
+          group: "nuclear-radiology",
+          label: "Cluster 5: higher compensation + high clinical intensity",
+          cluster: 3,
+          x: -3.150052721249355,
+          y: 1.8455478690955518,
+          salary: 691000.0,
+        },
+        {
+          id: "pediatric-radiology",
+          group: "pediatric-radiology",
+          label:
+            "Cluster 6: high clinical intensity + higher female representation",
+          cluster: 4,
+          x: -4.03039087156091,
+          y: 0.830075352477373,
+          salary: 265000.0,
+        },
+        {
+          id: "complex-general-surgical-oncology",
+          group: "complex-general-surgical-oncology",
+          label: "Cluster 3: procedure-oriented + long training",
+          cluster: 1,
+          x: -0.3843682171471978,
+          y: 4.720129558994489,
+          salary: 513000.0,
+        },
+        {
+          id: "pediatric-surgery",
+          group: "pediatric-surgery",
+          label: "Cluster 3: procedure-oriented + long training",
+          cluster: 1,
+          x: -0.6852845664527637,
+          y: 4.682263923279236,
+          salary: 265000.0,
+        },
+        {
+          id: "surgical-critical-care",
+          group: "surgical-critical-care",
+          label: "Cluster 2: research-light + procedure-oriented",
+          cluster: 0,
+          x: 3.1741366960332242,
+          y: 1.6028386484686474,
+          salary: 513000.0,
+        },
+        {
+          id: "vascular-surgery-independent",
+          group: "vascular-surgery-independent",
+          label: "Cluster 3: procedure-oriented + long training",
+          cluster: 1,
+          x: -0.30267125753715246,
+          y: 4.805906711163137,
+          salary: 513000.0,
+        },
+        {
+          id: "congenital-cardiac-surgery",
+          group: "congenital-cardiac-surgery",
+          label: "Cluster 3: procedure-oriented + long training",
+          cluster: 1,
+          x: -0.33973394338979523,
+          y: 4.72298615355998,
+          salary: 513000.0,
+        },
+        {
+          id: "pediatric-urology",
+          group: "pediatric-urology",
+          label:
+            "Cluster 6: high clinical intensity + higher female representation",
+          cluster: 4,
+          x: -4.312879988266955,
+          y: 1.0082925094610702,
+          salary: 265000.0,
+        },
+      ];
+      const features = [
+        {
+          name: "training-duration-z",
+          label: "Training duration",
+          unit: "years",
+          decimals: 0,
+          step: 1,
+          raw_min: 2.0,
+          raw_max: 9.0,
+          raw_mean: 5,
+          points: [
+            [2.0, -1.9675743694015608],
+            [2.0, -1.9675743694015608],
+            [3.0, -1.5388486719750796],
+            [3.0, -1.5388486719750796],
+            [3.0, -1.5388486719750796],
+            [3.0, -2.2948365656673095],
+            [3.0, -1.5388486719750796],
+            [3.0, -1.9675743694015608],
+            [3.0, -1.9675743694015608],
+            [3.0, -1.9675743694015608],
+            [4.0, -0.9433122742408162],
+            [4.0, -0.9433122742408162],
+            [4.0, -0.9433122742408162],
+            [4.0, -0.9433122742408162],
+            [4.0, -0.9433122742408162],
+            [4.0, -0.9433122742408162],
+            [4.0, -0.9433122742408162],
+            [4.0, -0.9433122742408162],
+            [4.0, -0.9433122742408162],
+            [4.0, -0.9433122742408162],
+            [4.0, -0.9433122742408162],
+            [4.0, -0.9433122742408162],
+            [4.0, -0.9433122742408162],
+            [4.0, -0.9433122742408162],
+            [4.0, -0.9433122742408162],
+            [4.0, -0.9433122742408162],
+            [4.0, -0.9433122742408162],
+            [4.0, -1.9675743694015608],
+            [5.0, -0.12298315240268733],
+            [5.0, -0.12298315240268733],
+            [5.0, -0.12298315240268733],
+            [5.0, -0.12298315240268733],
+            [5.0, -0.12298315240268733],
+            [5.0, -0.12298315240268733],
+            [5.0, -0.12298315240268733],
+            [5.0, -0.12298315240268733],
+            [5.0, -0.12298315240268733],
+            [5.0, -0.12298315240268733],
+            [5.0, -0.12298315240268733],
+            [5.0, -0.12298315240268733],
+            [5.0, -0.9433122742408162],
+            [5.0, -0.12298315240268733],
+            [5.0, -0.12298315240268733],
+            [5.0, -0.12298315240268733],
+            [5.0, -0.12298315240268733],
+            [5.0, -0.12298315240268733],
+            [5.0, -0.12298315240268733],
+            [5.0, -0.12298315240268733],
+            [5.0, -0.12298315240268733],
+            [5.0, -0.9433122742408162],
+            [5.0, -0.12298315240268733],
+            [5.0, -0.12298315240268733],
+            [5.0, -0.12298315240268733],
+            [5.0, -0.12298315240268733],
+            [5.0, -0.12298315240268733],
+            [5.0, -0.12298315240268733],
+            [5.0, -0.12298315240268733],
+            [5.0, -0.12298315240268733],
+            [5.0, -0.12298315240268733],
+            [5.0, -0.12298315240268733],
+            [5.0, -0.9433122742408162],
+            [5.0, -0.12298315240268733],
+            [5.0, -1.5388486719750796],
+            [5.0, -1.5388486719750796],
+            [5.0, -1.5388486719750796],
+            [5.0, -1.5388486719750796],
+            [5.0, -1.5388486719750796],
+            [5.0, -0.12298315240268733],
+            [5.0, -1.5388486719750796],
+            [5.0, -1.5388486719750796],
+            [5.0, -0.12298315240268733],
+            [5.0, -0.9433122742408162],
+            [5.0, -0.9433122742408162],
+            [5.0, -0.12298315240268733],
+            [5.0, -0.12298315240268733],
+            [5.0, -0.12298315240268733],
+            [5.0, -0.12298315240268733],
+            [5.0, -0.12298315240268733],
+            [5.0, -0.12298315240268733],
+            [6.0, 0.7350301776240604],
+            [6.0, 0.7350301776240604],
+            [6.0, 0.7350301776240604],
+            [6.0, 0.7350301776240604],
+            [6.0, 0.7350301776240604],
+            [6.0, 0.7350301776240604],
+            [6.0, 0.7350301776240604],
+            [6.0, 0.7350301776240604],
+            [6.0, 0.7350301776240604],
+            [6.0, -0.12298315240268733],
+            [6.0, 0.7350301776240604],
+            [6.0, -0.12298315240268733],
+            [6.0, 0.7350301776240604],
+            [6.0, 0.7350301776240604],
+            [6.0, 0.7350301776240604],
+            [6.0, 0.7350301776240604],
+            [6.0, 0.7350301776240604],
+            [6.0, 0.7350301776240604],
+            [6.0, 0.7350301776240604],
+            [6.0, 0.7350301776240604],
+            [6.0, 0.7350301776240604],
+            [6.0, 0.7350301776240604],
+            [6.0, 0.7350301776240604],
+            [6.0, 0.7350301776240604],
+            [6.0, -0.9433122742408162],
+            [6.0, 0.7350301776240604],
+            [6.0, 0.7350301776240604],
+            [6.0, 0.7350301776240604],
+            [6.0, 0.7350301776240604],
+            [6.0, 0.7350301776240604],
+            [6.0, 0.7350301776240604],
+            [6.0, 0.7350301776240604],
+            [6.0, 0.7350301776240604],
+            [6.0, 0.7350301776240604],
+            [6.0, 0.7350301776240604],
+            [6.0, 0.7350301776240604],
+            [6.0, 0.7350301776240604],
+            [6.0, 0.7350301776240604],
+            [6.0, 0.7350301776240604],
+            [6.0, 0.7350301776240604],
+            [6.0, 0.7350301776240604],
+            [6.0, 0.7350301776240604],
+            [6.0, 0.7350301776240604],
+            [6.0, -0.9433122742408162],
+            [7.0, 1.379234517575589],
+            [7.0, 1.379234517575589],
+            [7.0, 1.379234517575589],
+            [7.0, 1.379234517575589],
+            [7.0, 1.379234517575589],
+            [7.0, 1.379234517575589],
+            [7.0, 1.379234517575589],
+            [7.0, 1.379234517575589],
+            [7.0, 1.379234517575589],
+            [7.0, 1.379234517575589],
+            [7.0, 1.379234517575589],
+            [7.0, 1.379234517575589],
+            [7.0, 1.379234517575589],
+            [7.0, 1.379234517575589],
+            [7.0, 1.379234517575589],
+            [7.0, 1.379234517575589],
+            [7.0, 1.379234517575589],
+            [8.0, 1.8384226204736176],
+            [8.0, 1.8384226204736176],
+            [9.0, 2.1843828593976586],
+          ],
+        },
+        {
+          name: "clinical-work-intensity-z",
+          label: "Clinical work intensity",
+          unit: "wRVU per physician-hour",
+          decimals: 2,
+          step: 0.00870050013,
+          raw_min: 1.994300008,
+          raw_max: 3.734400034,
+          raw_mean: 2.682016802090909,
+          points: [
+            [1.994300008, -2.183882834628773],
+            [2.200000048, -1.4376782492224291],
+            [2.200000048, -1.4376782492224291],
+            [2.200000048, -1.4376782492224291],
+            [2.200000048, -1.4376782492224291],
+            [2.349999905, -0.9362932883763775],
+            [2.349999905, -0.9362932883763775],
+            [2.349999905, -0.9362932883763775],
+            [2.400000095, -0.776253310965476],
+            [2.400000095, -0.776253310965476],
+            [2.400000095, -0.776253310965476],
+            [2.450000048, -0.6195141403070354],
+            [2.450000048, -0.6195141403070354],
+            [2.450000048, -0.6195141403070354],
+            [2.450000048, -0.6195141403070354],
+            [2.450000048, -0.6195141403070354],
+            [2.450000048, -0.6195141403070354],
+            [2.450000048, -0.6195141403070354],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.451100111, -0.6161017287125132],
+            [2.502799988, -0.4574325783119122],
+            [2.502799988, -0.4574325783119122],
+            [2.502799988, -0.4574325783119122],
+            [2.502799988, -0.4574325783119122],
+            [2.502799988, -0.4574325783119122],
+            [2.502799988, -0.4574325783119122],
+            [2.502799988, -0.4574325783119122],
+            [2.502799988, -0.4574325783119122],
+            [2.502799988, -0.4574325783119122],
+            [2.502799988, -0.4574325783119122],
+            [2.502799988, -0.4574325783119122],
+            [2.502799988, -0.4574325783119122],
+            [2.599999905, -0.1678020653713458],
+            [2.599999905, -0.1678020653713458],
+            [2.599999905, -0.1678020653713458],
+            [2.599999905, -0.1678020653713458],
+            [2.599999905, -0.1678020653713458],
+            [2.599999905, -0.1678020653713458],
+            [2.599999905, -0.1678020653713458],
+            [2.599999905, -0.1678020653713458],
+            [2.599999905, -0.1678020653713458],
+            [2.599999905, -0.1678020653713458],
+            [2.599999905, -0.1678020653713458],
+            [2.599999905, -0.1678020653713458],
+            [2.599999905, -0.1678020653713458],
+            [2.599999905, -0.1678020653713458],
+            [2.599999905, -0.1678020653713458],
+            [2.599999905, -0.1678020653713458],
+            [2.599999905, -0.1678020653713458],
+            [2.868000031, 0.5779406577402301],
+            [2.868000031, 0.5779406577402301],
+            [2.868000031, 0.5779406577402301],
+            [2.868000031, 0.5779406577402301],
+            [2.913100004, 0.6965473226868968],
+            [2.973500013, 0.8525464801855491],
+            [2.973500013, 0.8525464801855491],
+            [2.973500013, 0.8525464801855491],
+            [2.973500013, 0.8525464801855491],
+            [2.973500013, 0.8525464801855491],
+            [2.973500013, 0.8525464801855491],
+            [3.119999886, 1.2181316314244948],
+            [3.119999886, 1.2181316314244948],
+            [3.119999886, 1.2181316314244948],
+            [3.119999886, 1.2181316314244948],
+            [3.119999886, 1.2181316314244948],
+            [3.119999886, 1.2181316314244948],
+            [3.119999886, 1.2181316314244948],
+            [3.119999886, 1.2181316314244948],
+            [3.119999886, 1.2181316314244948],
+            [3.144399881, 1.2773487210927865],
+            [3.144399881, 1.2773487210927865],
+            [3.144399881, 1.2773487210927865],
+            [3.144399881, 1.2773487210927865],
+            [3.144399881, 1.2773487210927865],
+            [3.144399881, 1.2773487210927865],
+            [3.144399881, 1.2773487210927865],
+            [3.144399881, 1.2773487210927865],
+            [3.144399881, 1.2773487210927865],
+            [3.345799923, 1.7492762402011286],
+            [3.345799923, 1.7492762402011286],
+            [3.345799923, 1.7492762402011286],
+            [3.345799923, 1.7492762402011286],
+            [3.345799923, 1.7492762402011286],
+            [3.5, 2.091782412919035],
+            [3.5, 2.091782412919035],
+            [3.734400034, 2.584549329827414],
+            [3.734400034, 2.584549329827414],
+            [3.734400034, 2.584549329827414],
+            [3.734400034, 2.584549329827414],
+            [3.734400034, 2.584549329827414],
+            [3.734400034, 2.584549329827414],
+          ],
+        },
+        {
+          name: "scientific-activity-index-z",
+          label: "Scientific activity (NIH funding)",
+          unit: "$k NIH funding per physician/year",
+          decimals: 1,
+          step: 0.23849999619249998,
+          raw_min: 0.1000000015,
+          raw_max: 47.79999924,
+          raw_mean: 18.762237692049652,
+          points: [
+            [0.1000000015, -4.017172317629821],
+            [0.1000000015, -4.017172317629821],
+            [0.1000000015, -4.017172317629821],
+            [0.8000000119, -2.2739982743684233],
+            [0.8000000119, -2.2739982743684233],
+            [0.8000000119, -2.2739982743684233],
+            [0.8000000119, -2.2739982743684233],
+            [1.399999976, -1.8092281904871153],
+            [3.5, -0.9676716028767772],
+            [3.5, -0.9676716028767772],
+            [3.5, -0.9676716028767772],
+            [3.5, -0.9676716028767772],
+            [3.5, -0.9676716028767772],
+            [3.5, -0.9676716028767772],
+            [3.5, -0.9676716028767772],
+            [3.900000095, -0.8038213192232779],
+            [3.900000095, -0.8038213192232779],
+            [3.900000095, -0.8038213192232779],
+            [3.900000095, -0.8038213192232779],
+            [3.900000095, -0.8038213192232779],
+            [3.900000095, -0.8038213192232779],
+            [3.900000095, -0.8038213192232779],
+            [3.900000095, -0.8038213192232779],
+            [3.900000095, -0.8038213192232779],
+            [3.900000095, -0.8038213192232779],
+            [3.900000095, -0.8038213192232779],
+            [3.900000095, -0.8038213192232779],
+            [3.900000095, -0.8038213192232779],
+            [3.900000095, -0.8038213192232779],
+            [3.900000095, -0.8038213192232779],
+            [3.900000095, -0.8038213192232779],
+            [4.099999905, -0.8618799524236185],
+            [4.099999905, -0.8618799524236185],
+            [4.099999905, -0.8618799524236185],
+            [4.099999905, -0.8618799524236185],
+            [4.099999905, -0.8618799524236185],
+            [4.099999905, -0.8618799524236185],
+            [5.800000191, -0.5442473417720164],
+            [5.800000191, -0.5442473417720164],
+            [5.800000191, -0.5442473417720164],
+            [5.800000191, -0.5442473417720164],
+            [5.800000191, -0.5442473417720164],
+            [6.5, -0.39539665401439816],
+            [6.5, -0.39539665401439816],
+            [10.30000019, -0.08758308676819784],
+            [10.30000019, -0.08758308676819784],
+            [10.30000019, -0.08758308676819784],
+            [10.30000019, -0.08758308676819784],
+            [10.30000019, -0.08758308676819784],
+            [10.30000019, -0.08758308676819784],
+            [10.30000019, -0.08758308676819784],
+            [10.30000019, -0.08758308676819784],
+            [10.30000019, -0.08758308676819784],
+            [10.30000019, -0.08758308676819784],
+            [11.60000038, 0.0939563269527832],
+            [11.60000038, 0.0939563269527832],
+            [11.60000038, 0.0939563269527832],
+            [12.69999981, 0.10509064739360717],
+            [12.69999981, 0.10509064739360717],
+            [12.69999981, 0.10509064739360717],
+            [12.69999981, 0.10509064739360717],
+            [12.69999981, 0.10509064739360717],
+            [12.69999981, 0.10509064739360717],
+            [12.69999981, 0.10509064739360717],
+            [12.69999981, 0.10509064739360717],
+            [12.69999981, 0.10509064739360717],
+            [12.69999981, 0.10509064739360717],
+            [12.69999981, 0.10509064739360717],
+            [13.60000038, 0.10543010965025151],
+            [13.60000038, 0.10543010965025151],
+            [13.60000038, 0.10543010965025151],
+            [13.60000038, 0.10543010965025151],
+            [13.60000038, 0.10543010965025151],
+            [13.60000038, 0.10543010965025151],
+            [13.60000038, 0.10543010965025151],
+            [13.60000038, 0.10543010965025151],
+            [13.60000038, 0.10543010965025151],
+            [13.60000038, 0.10543010965025151],
+            [13.60000038, 0.10543010965025151],
+            [13.60000038, 0.10543010965025151],
+            [13.60000038, 0.10543010965025151],
+            [13.60000038, 0.10543010965025151],
+            [13.60000038, 0.10543010965025151],
+            [13.60000038, 0.10543010965025151],
+            [13.60000038, 0.10543010965025151],
+            [13.60000038, 0.10543010965025151],
+            [13.60000038, 0.10543010965025151],
+            [13.60000038, 0.10543010965025151],
+            [20.5, 0.5357417378682108],
+            [21.70000076, 0.5180430747632956],
+            [21.70000076, 0.5180430747632956],
+            [21.70000076, 0.5180430747632956],
+            [21.70000076, 0.5180430747632956],
+            [21.70000076, 0.5180430747632956],
+            [21.70000076, 0.5180430747632956],
+            [21.70000076, 0.5180430747632956],
+            [31.39999962, 0.7697839246337417],
+            [31.39999962, 0.7697839246337417],
+            [31.39999962, 0.7697839246337417],
+            [31.39999962, 0.7697839246337417],
+            [31.39999962, 0.7697839246337417],
+            [31.39999962, 0.7697839246337417],
+            [31.39999962, 0.7697839246337417],
+            [31.39999962, 0.7697839246337417],
+            [31.39999962, 0.7697839246337417],
+            [31.39999962, 0.7697839246337417],
+            [31.39999962, 0.7697839246337417],
+            [31.39999962, 0.7697839246337417],
+            [31.39999962, 0.7697839246337417],
+            [31.39999962, 0.7697839246337417],
+            [31.39999962, 0.7697839246337417],
+            [31.39999962, 0.7697839246337417],
+            [31.39999962, 0.7697839246337417],
+            [31.39999962, 0.7697839246337417],
+            [31.39999962, 0.7697839246337417],
+            [31.39999962, 0.7697839246337417],
+            [31.39999962, 0.7697839246337417],
+            [31.39999962, 0.7697839246337417],
+            [31.39999962, 0.7697839246337417],
+            [31.39999962, 0.7697839246337417],
+            [31.39999962, 0.7697839246337417],
+            [31.39999962, 0.7697839246337417],
+            [44.29999924, 1.0747434756901948],
+            [44.29999924, 1.0747434756901948],
+            [44.29999924, 1.0747434756901948],
+            [44.29999924, 1.0747434756901948],
+            [44.29999924, 1.0747434756901948],
+            [47.79999924, 1.190881887021258],
+            [47.79999924, 1.190881887021258],
+            [47.79999924, 1.190881887021258],
+            [47.79999924, 1.190881887021258],
+            [47.79999924, 1.190881887021258],
+            [47.79999924, 1.190881887021258],
+            [47.79999924, 1.190881887021258],
+            [47.79999924, 1.190881887021258],
+            [47.79999924, 1.190881887021258],
+            [47.79999924, 1.190881887021258],
+            [47.79999924, 1.190881887021258],
+            [47.79999924, 1.190881887021258],
+            [47.79999924, 1.190881887021258],
+            [47.79999924, 1.190881887021258],
+            [47.79999924, 1.190881887021258],
+            [47.79999924, 1.190881887021258],
+          ],
+        },
+        {
+          name: "private-practice-z",
+          label: "Private practice",
+          unit: "%",
+          decimals: 1,
+          step: 0.19850000384999997,
+          raw_min: 30.70000076,
+          raw_max: 70.40000153,
+          raw_mean: 44.00839147825175,
+          points: [
+            [30.70000076, -1.8091421351795245],
+            [30.70000076, -1.8091421351795245],
+            [30.70000076, -1.8091421351795245],
+            [30.70000076, -1.8091421351795245],
+            [30.70000076, -1.8091421351795245],
+            [30.70000076, -1.8091421351795245],
+            [31.70000076, -1.7239075465273752],
+            [33.20000076, -1.5872153991304725],
+            [33.20000076, -1.5872153991304725],
+            [33.20000076, -1.5872153991304725],
+            [33.20000076, -1.5872153991304725],
+            [38.09999847, -1.0406688523927885],
+            [38.09999847, -1.0406688523927885],
+            [38.09999847, -1.0406688523927885],
+            [38.09999847, -1.0406688523927885],
+            [38.09999847, -1.0406688523927885],
+            [38.09999847, -1.0406688523927885],
+            [38.09999847, -1.0406688523927885],
+            [38.09999847, -1.0406688523927885],
+            [38.09999847, -1.0406688523927885],
+            [38.09999847, -1.0406688523927885],
+            [38.09999847, -1.0406688523927885],
+            [38.09999847, -1.0406688523927885],
+            [38.09999847, -1.0406688523927885],
+            [38.09999847, -1.0406688523927885],
+            [38.09999847, -1.0406688523927885],
+            [38.09999847, -1.0406688523927885],
+            [38.09999847, -1.0406688523927885],
+            [38.09999847, -1.0406688523927885],
+            [38.09999847, -1.0406688523927885],
+            [38.09999847, -1.0406688523927885],
+            [38.90000153, -0.9314136307597678],
+            [39.20000076, -0.8885096607488988],
+            [39.20000076, -0.8885096607488988],
+            [39.20000076, -0.8885096607488988],
+            [39.20000076, -0.8885096607488988],
+            [39.20000076, -0.8885096607488988],
+            [39.20000076, -0.8885096607488988],
+            [39.20000076, -0.8885096607488988],
+            [39.20000076, -0.8885096607488988],
+            [39.20000076, -0.8885096607488988],
+            [39.20000076, -0.8885096607488988],
+            [39.20000076, -0.8885096607488988],
+            [39.20000076, -0.8885096607488988],
+            [39.20000076, -0.8885096607488988],
+            [39.20000076, -0.8885096607488988],
+            [39.20000076, -0.8885096607488988],
+            [39.20000076, -0.8885096607488988],
+            [42.20000076, -0.38431132502243825],
+            [43.59999847, -0.08350490929166397],
+            [43.59999847, -0.08350490929166397],
+            [43.59999847, -0.08350490929166397],
+            [43.59999847, -0.08350490929166397],
+            [43.59999847, -0.08350490929166397],
+            [43.59999847, -0.08350490929166397],
+            [43.59999847, -0.08350490929166397],
+            [43.59999847, -0.08350490929166397],
+            [43.59999847, -0.08350490929166397],
+            [43.59999847, -0.08350490929166397],
+            [43.59999847, -0.08350490929166397],
+            [43.59999847, -0.08350490929166397],
+            [43.59999847, -0.08350490929166397],
+            [43.59999847, -0.08350490929166397],
+            [43.59999847, -0.08350490929166397],
+            [43.59999847, -0.08350490929166397],
+            [43.59999847, -0.08350490929166397],
+            [43.59999847, -0.08350490929166397],
+            [43.59999847, -0.08350490929166397],
+            [43.59999847, -0.08350490929166397],
+            [43.59999847, -0.08350490929166397],
+            [43.59999847, -0.08350490929166397],
+            [43.59999847, -0.08350490929166397],
+            [43.59999847, -0.08350490929166397],
+            [43.59999847, -0.08350490929166397],
+            [43.59999847, -0.08350490929166397],
+            [43.59999847, -0.08350490929166397],
+            [43.59999847, -0.08350490929166397],
+            [43.59999847, -0.08350490929166397],
+            [43.59999847, -0.08350490929166397],
+            [43.59999847, -0.08350490929166397],
+            [43.59999847, -0.08350490929166397],
+            [43.59999847, -0.08350490929166397],
+            [43.59999847, -0.08350490929166397],
+            [43.59999847, -0.08350490929166397],
+            [45.20000076, 0.2897336622618164],
+            [45.20000076, 0.2897336622618164],
+            [45.20000076, 0.2897336622618164],
+            [45.20000076, 0.2897336622618164],
+            [45.20000076, 0.2897336622618164],
+            [45.20000076, 0.2897336622618164],
+            [46.29999924, 0.5078948534026219],
+            [46.29999924, 0.5078948534026219],
+            [46.29999924, 0.5078948534026219],
+            [46.29999924, 0.5078948534026219],
+            [46.29999924, 0.5078948534026219],
+            [46.29999924, 0.5078948534026219],
+            [46.40000153, 0.5263732853188345],
+            [46.40000153, 0.5263732853188345],
+            [46.40000153, 0.5263732853188345],
+            [46.40000153, 0.5263732853188345],
+            [46.40000153, 0.5263732853188345],
+            [46.40000153, 0.5263732853188345],
+            [46.40000153, 0.5263732853188345],
+            [46.90000153, 0.6157905113728503],
+            [46.90000153, 0.6157905113728503],
+            [46.90000153, 0.6157905113728503],
+            [46.90000153, 0.6157905113728503],
+            [46.90000153, 0.6157905113728503],
+            [46.90000153, 0.6157905113728503],
+            [46.90000153, 0.6157905113728503],
+            [46.90000153, 0.6157905113728503],
+            [51.20000076, 1.2333945727057471],
+            [51.20000076, 1.2333945727057471],
+            [51.20000076, 1.2333945727057471],
+            [51.20000076, 1.2333945727057471],
+            [51.20000076, 1.2333945727057471],
+            [51.20000076, 1.2333945727057471],
+            [51.20000076, 1.2333945727057471],
+            [51.20000076, 1.2333945727057471],
+            [51.20000076, 1.2333945727057471],
+            [51.20000076, 1.2333945727057471],
+            [51.20000076, 1.2333945727057471],
+            [51.20000076, 1.2333945727057471],
+            [51.20000076, 1.2333945727057471],
+            [51.20000076, 1.2333945727057471],
+            [51.20000076, 1.2333945727057471],
+            [51.20000076, 1.2333945727057471],
+            [51.20000076, 1.2333945727057471],
+            [51.20000076, 1.2333945727057471],
+            [51.20000076, 1.2333945727057471],
+            [51.20000076, 1.2333945727057471],
+            [51.20000076, 1.2333945727057471],
+            [51.20000076, 1.2333945727057471],
+            [54.0, 1.5390210124083856],
+            [54.0, 1.5390210124083856],
+            [54.0, 1.5390210124083856],
+            [54.0, 1.5390210124083856],
+            [54.0, 1.5390210124083856],
+            [54.0, 1.5390210124083856],
+            [54.0, 1.5390210124083856],
+            [54.0, 1.5390210124083856],
+            [70.40000153, 2.6759967369801028],
+            [70.40000153, 2.6759967369801028],
+          ],
+        },
+        {
+          name: "salary-z",
+          label: "Average compensation",
+          unit: "$/year",
+          decimals: 0,
+          step: 1000,
+          raw_min: 240000.0,
+          raw_max: 988000.0,
+          raw_mean: 467000,
+          points: [
+            [240000.0, -1.6847077074349481],
+            [240000.0, -1.6847077074349481],
+            [240000.0, -1.6847077074349481],
+            [240000.0, -1.6847077074349481],
+            [240000.0, -1.6847077074349481],
+            [242000.0, -1.661486653857749],
+            [265000.0, -1.4074383943576265],
+            [265000.0, -1.4074383943576265],
+            [265000.0, -1.4074383943576265],
+            [265000.0, -1.4074383943576265],
+            [265000.0, -1.4074383943576265],
+            [265000.0, -1.4074383943576265],
+            [265000.0, -1.4074383943576265],
+            [265000.0, -1.4074383943576265],
+            [265000.0, -1.4074383943576265],
+            [265000.0, -1.4074383943576265],
+            [265000.0, -1.4074383943576265],
+            [265000.0, -1.4074383943576265],
+            [265000.0, -1.4074383943576265],
+            [265000.0, -1.4074383943576265],
+            [265000.0, -1.4074383943576265],
+            [265000.0, -1.4074383943576265],
+            [265000.0, -1.4074383943576265],
+            [314000.0, -0.9326985968360088],
+            [318000.0, -0.8972787597580939],
+            [318000.0, -0.8972787597580939],
+            [320000.0, -0.8797355357327222],
+            [321000.0, -0.8710050553611047],
+            [321000.0, -0.8710050553611047],
+            [327000.0, -0.8191863151196546],
+            [327000.0, -0.8191863151196546],
+            [327000.0, -0.8191863151196546],
+            [327000.0, -0.8191863151196546],
+            [327000.0, -0.8191863151196546],
+            [327000.0, -0.8191863151196546],
+            [327000.0, -0.8191863151196546],
+            [327000.0, -0.8191863151196546],
+            [348000.0, -0.6450241367879067],
+            [348000.0, -0.6450241367879067],
+            [348000.0, -0.6450241367879067],
+            [348000.0, -0.6450241367879067],
+            [351000.0, -0.6210056936347627],
+            [351000.0, -0.6210056936347627],
+            [351000.0, -0.6210056936347627],
+            [351000.0, -0.6210056936347627],
+            [351000.0, -0.6210056936347627],
+            [365000.0, -0.5115676123334814],
+            [365000.0, -0.5115676123334814],
+            [365000.0, -0.5115676123334814],
+            [368000.0, -0.48866328724147584],
+            [370000.0, -0.47349723448636477],
+            [370000.0, -0.47349723448636477],
+            [370000.0, -0.47349723448636477],
+            [370000.0, -0.47349723448636477],
+            [370000.0, -0.47349723448636477],
+            [370000.0, -0.47349723448636477],
+            [370000.0, -0.47349723448636477],
+            [376000.0, -0.4284860926700416],
+            [385000.0, -0.36229857045768193],
+            [385000.0, -0.36229857045768193],
+            [409000.0, -0.19309048298257456],
+            [409000.0, -0.19309048298257456],
+            [409000.0, -0.19309048298257456],
+            [409000.0, -0.19309048298257456],
+            [409000.0, -0.19309048298257456],
+            [409000.0, -0.19309048298257456],
+            [409000.0, -0.19309048298257456],
+            [409000.0, -0.19309048298257456],
+            [409000.0, -0.19309048298257456],
+            [409000.0, -0.19309048298257456],
+            [410000.0, -0.18625743342647602],
+            [410000.0, -0.18625743342647602],
+            [410000.0, -0.18625743342647602],
+            [410000.0, -0.18625743342647602],
+            [410000.0, -0.18625743342647602],
+            [410000.0, -0.18625743342647602],
+            [440000.0, 0.011339788814922397],
+            [440000.0, 0.011339788814922397],
+            [440000.0, 0.011339788814922397],
+            [440000.0, 0.011339788814922397],
+            [459000.0, 0.12963214447703825],
+            [459000.0, 0.12963214447703825],
+            [484000.0, 0.27803017559407106],
+            [484000.0, 0.27803017559407106],
+            [484000.0, 0.27803017559407106],
+            [513000.0, 0.44085605787629845],
+            [513000.0, 0.44085605787629845],
+            [513000.0, 0.44085605787629845],
+            [513000.0, 0.44085605787629845],
+            [513000.0, 0.44085605787629845],
+            [513000.0, 0.44085605787629845],
+            [513000.0, 0.44085605787629845],
+            [513000.0, 0.44085605787629845],
+            [513000.0, 0.44085605787629845],
+            [536000.0, 0.56357737250158],
+            [536000.0, 0.56357737250158],
+            [536000.0, 0.56357737250158],
+            [536000.0, 0.56357737250158],
+            [553000.0, 0.6509457891962163],
+            [553000.0, 0.6509457891962163],
+            [570000.0, 0.7356685949789916],
+            [570000.0, 0.7356685949789916],
+            [570000.0, 0.7356685949789916],
+            [570000.0, 0.7356685949789916],
+            [570000.0, 0.7356685949789916],
+            [570000.0, 0.7356685949789916],
+            [570000.0, 0.7356685949789916],
+            [587000.0, 0.8179014070334426],
+            [613000.0, 0.9391727496417438],
+            [613000.0, 0.9391727496417438],
+            [613000.0, 0.9391727496417438],
+            [626000.0, 0.9978926962019291],
+            [626000.0, 0.9978926962019291],
+            [634000.0, 1.0334249696647426],
+            [634000.0, 1.0334249696647426],
+            [634000.0, 1.0334249696647426],
+            [634000.0, 1.0334249696647426],
+            [634000.0, 1.0334249696647426],
+            [634000.0, 1.0334249696647426],
+            [638000.0, 1.0510233724548108],
+            [639000.0, 1.0554057186516344],
+            [647000.0, 1.0902196584435742],
+            [691000.0, 1.2743185879028325],
+            [691000.0, 1.2743185879028325],
+            [691000.0, 1.2743185879028325],
+            [691000.0, 1.2743185879028325],
+            [691000.0, 1.2743185879028325],
+            [691000.0, 1.2743185879028325],
+            [691000.0, 1.2743185879028325],
+            [725000.0, 1.4087179030268273],
+            [725000.0, 1.4087179030268273],
+            [725000.0, 1.4087179030268273],
+            [801000.0, 1.687661704515697],
+            [801000.0, 1.687661704515697],
+            [801000.0, 1.687661704515697],
+            [801000.0, 1.687661704515697],
+            [801000.0, 1.687661704515697],
+            [801000.0, 1.687661704515697],
+            [801000.0, 1.687661704515697],
+            [801000.0, 1.687661704515697],
+            [801000.0, 1.687661704515697],
+            [801000.0, 1.687661704515697],
+            [988000.0, 2.274770413225778],
+          ],
+        },
+        {
+          name: "workforce-burden-z",
+          label: "Workforce burden",
+          unit: "physicians per 1,000 patients",
+          decimals: 2,
+          step: 0.022909611328715,
+          raw_min: 0.018077734257,
+          raw_max: 4.6,
+          raw_mean: 0.4893808311376572,
+          points: [
+            [0.018077734257, -2.2048153352913364],
+            [0.018077734257, -2.2048153352913364],
+            [0.018077734257, -2.2048153352913364],
+            [0.053333333333, -1.6665661024451912],
+            [0.053333333333, -1.6665661024451912],
+            [0.053333333333, -1.6665661024451912],
+            [0.053333333333, -1.6665661024451912],
+            [0.061839506173, -1.5768172363048216],
+            [0.063272069901, -1.5624728853144807],
+            [0.063272069901, -1.5624728853144807],
+            [0.063272069901, -1.5624728853144807],
+            [0.063272069901, -1.5624728853144807],
+            [0.063272069901, -1.5624728853144807],
+            [0.063272069901, -1.5624728853144807],
+            [0.063272069901, -1.5624728853144807],
+            [0.063272069901, -1.5624728853144807],
+            [0.063272069901, -1.5624728853144807],
+            [0.1071428571, -1.1917909340974975],
+            [0.1158088235, -1.1290977741812407],
+            [0.12, -1.0996142111361538],
+            [0.12, -1.0996142111361538],
+            [0.1297577855, -1.0328296817214846],
+            [0.1297577855, -1.0328296817214846],
+            [0.1479289941, -0.9143025277387172],
+            [0.1479289941, -0.9143025277387172],
+            [0.1531007752, -0.881736763919326],
+            [0.1609105181, -0.8333984010324186],
+            [0.1609105181, -0.8333984010324186],
+            [0.1609105181, -0.8333984010324186],
+            [0.1609105181, -0.8333984010324186],
+            [0.1609105181, -0.8333984010324186],
+            [0.1609105181, -0.8333984010324186],
+            [0.1609105181, -0.8333984010324186],
+            [0.1609105181, -0.8333984010324186],
+            [0.1639344262, -0.8149323245449547],
+            [0.1740578577, -0.7540314382479848],
+            [0.1740578577, -0.7540314382479848],
+            [0.197, -0.6204450876141847],
+            [0.197, -0.6204450876141847],
+            [0.197, -0.6204450876141847],
+            [0.197, -0.6204450876141847],
+            [0.197, -0.6204450876141847],
+            [0.197, -0.6204450876141847],
+            [0.197, -0.6204450876141847],
+            [0.197, -0.6204450876141847],
+            [0.197, -0.6204450876141847],
+            [0.2, -0.6033587541263193],
+            [0.2037419355, -0.5821536259177956],
+            [0.2037419355, -0.5821536259177956],
+            [0.2175206612, -0.5049960092583607],
+            [0.2175206612, -0.5049960092583607],
+            [0.223880597, -0.4698164725156267],
+            [0.2325, -0.42251446170266255],
+            [0.2325, -0.42251446170266255],
+            [0.2325, -0.42251446170266255],
+            [0.2389, -0.387640251368889],
+            [0.2389, -0.387640251368889],
+            [0.2389, -0.387640251368889],
+            [0.2389, -0.387640251368889],
+            [0.2517857143, -0.3179671384668179],
+            [0.2517857143, -0.3179671384668179],
+            [0.2517857143, -0.3179671384668179],
+            [0.2517857143, -0.3179671384668179],
+            [0.2517857143, -0.3179671384668179],
+            [0.2517857143, -0.3179671384668179],
+            [0.2766666667, -0.1849547554942627],
+            [0.2766666667, -0.1849547554942627],
+            [0.3054848485, -0.0322282271105874],
+            [0.3098591549, -0.009115308394890808],
+            [0.3351716738, 0.11373633267634133],
+            [0.3351716738, 0.11373633267634133],
+            [0.3571428571, 0.2066863124124915],
+            [0.3574600783, 0.20794901306402885],
+            [0.3574600783, 0.20794901306402885],
+            [0.3574600783, 0.20794901306402885],
+            [0.3574600783, 0.20794901306402885],
+            [0.3574600783, 0.20794901306402885],
+            [0.3574600783, 0.20794901306402885],
+            [0.3574600783, 0.20794901306402885],
+            [0.3574600783, 0.20794901306402885],
+            [0.3574600783, 0.20794901306402885],
+            [0.3574600783, 0.20794901306402885],
+            [0.3574600783, 0.20794901306402885],
+            [0.3875, 0.3187913570593409],
+            [0.3875, 0.3187913570593409],
+            [0.3875, 0.3187913570593409],
+            [0.3875, 0.3187913570593409],
+            [0.3875, 0.3187913570593409],
+            [0.3875, 0.3187913570593409],
+            [0.3875, 0.3187913570593409],
+            [0.3875, 0.3187913570593409],
+            [0.4235294118, 0.43273987492434923],
+            [0.4235294118, 0.43273987492434923],
+            [0.4659001161, 0.5466537032719019],
+            [0.504, 0.6348971011607486],
+            [0.504, 0.6348971011607486],
+            [0.504, 0.6348971011607486],
+            [0.504, 0.6348971011607486],
+            [0.504, 0.6348971011607486],
+            [0.504, 0.6348971011607486],
+            [0.504, 0.6348971011607486],
+            [0.706779661, 0.9677434380069103],
+            [0.706779661, 0.9677434380069103],
+            [0.706779661, 0.9677434380069103],
+            [0.706779661, 0.9677434380069103],
+            [0.706779661, 0.9677434380069103],
+            [0.706779661, 0.9677434380069103],
+            [0.8260958904, 1.100938172734647],
+            [0.8260958904, 1.100938172734647],
+            [0.8260958904, 1.100938172734647],
+            [0.8260958904, 1.100938172734647],
+            [0.8260958904, 1.100938172734647],
+            [0.8260958904, 1.100938172734647],
+            [0.8260958904, 1.100938172734647],
+            [0.8260958904, 1.100938172734647],
+            [0.8260958904, 1.100938172734647],
+            [0.8260958904, 1.100938172734647],
+            [0.8260958904, 1.100938172734647],
+            [0.8260958904, 1.100938172734647],
+            [0.8260958904, 1.100938172734647],
+            [0.8260958904, 1.100938172734647],
+            [0.8260958904, 1.100938172734647],
+            [0.8260958904, 1.100938172734647],
+            [0.8260958904, 1.100938172734647],
+            [0.8260958904, 1.100938172734647],
+            [0.8260958904, 1.100938172734647],
+            [0.8260958904, 1.100938172734647],
+            [0.8260958904, 1.100938172734647],
+            [0.8260958904, 1.100938172734647],
+            [0.8260958904, 1.100938172734647],
+            [0.83575, 1.1104345291215578],
+            [0.84, 1.1145629814181675],
+            [0.84, 1.1145629814181675],
+            [0.84, 1.1145629814181675],
+            [0.84, 1.1145629814181675],
+            [0.84, 1.1145629814181675],
+            [0.84, 1.1145629814181675],
+            [2.280701754, 1.772835540491341],
+            [2.280701754, 1.772835540491341],
+            [2.280701754, 1.772835540491341],
+            [2.280701754, 1.772835540491341],
+            [3.0, 1.914919227787118],
+            [4.6, 2.1142703483698857],
+          ],
+        },
+        {
+          name: "competitiveness-z",
+          label: "NRMP competitiveness",
+          unit: "candidates per position",
+          decimals: 2,
+          step: 0.07516666664999999,
+          raw_min: 0.3,
+          raw_max: 15.33333333,
+          raw_mean: 1.243987758052448,
+          points: [
+            [0.3, -2.8576116084750525],
+            [0.4383561644, -2.012013504366783],
+            [0.475, -1.8330091989813933],
+            [0.475, -1.8330091989813933],
+            [0.475, -1.8330091989813933],
+            [0.475, -1.8330091989813933],
+            [0.4948453608, -1.741747918785555],
+            [0.5172413793, -1.6430533641607257],
+            [0.5283018868, -1.5958775998818706],
+            [0.5333333333, -1.5747432423701857],
+            [0.5357142857, -1.5648115400351872],
+            [0.5555555556, -1.4837239409516645],
+            [0.5681818182, -1.4336169904527285],
+            [0.5930232558, -1.3382048892274243],
+            [0.6712328767, -1.0619885501504014],
+            [0.6781609195, -1.0390933426553222],
+            [0.6842105263, -1.0192915908991333],
+            [0.6929133858, -0.991110091514015],
+            [0.696969697, -0.9780956840927263],
+            [0.7136465324, -0.9253734146142035],
+            [0.7183098592, -0.9108510648270502],
+            [0.72, -0.9056109235285614],
+            [0.728, -0.880973516353494],
+            [0.7333333333, -0.8646985726089763],
+            [0.741697417, -0.8394119091710577],
+            [0.7631578947, -0.7758138993882969],
+            [0.7660550459, -0.7673655495286845],
+            [0.7704590818, -0.7545839145247514],
+            [0.7767857143, -0.7363497979845018],
+            [0.8045602606, -0.6580187018652698],
+            [0.8144329897, -0.6308251339978537],
+            [0.8333333333, -0.5796731131535817],
+            [0.8490566038, -0.5379959810025932],
+            [0.8530322346, -0.5275801429253478],
+            [0.8559322034, -0.5200130495996228],
+            [0.8586956522, -0.5128259710547706],
+            [0.8630136986, -0.5016419661814907],
+            [0.8680555556, -0.4886538117350606],
+            [0.8766233766, -0.46675464329403693],
+            [0.8780487805, -0.463132118836699],
+            [0.9045454545, -0.39684332762060054],
+            [0.9102564103, -0.38281034041231754],
+            [0.9133858268, -0.3751580140121078],
+            [0.9154228856, -0.37019088583338805],
+            [0.9174311927, -0.3653046845285256],
+            [0.9435146444, -0.3027975987032973],
+            [0.9442231076, -0.3011240309519273],
+            [0.9485086342, -0.29102720809632443],
+            [0.9682539683, -0.24508827373142794],
+            [0.9724310777, -0.23549004951259242],
+            [0.9771793943, -0.2246292472698408],
+            [0.9771793943, -0.2246292472698408],
+            [0.9771793943, -0.2246292472698408],
+            [0.9771793943, -0.2246292472698408],
+            [0.9771793943, -0.2246292472698408],
+            [0.9771793943, -0.2246292472698408],
+            [0.9771793943, -0.2246292472698408],
+            [0.9771793943, -0.2246292472698408],
+            [0.9771793943, -0.2246292472698408],
+            [0.9771793943, -0.2246292472698408],
+            [0.9771793943, -0.2246292472698408],
+            [0.9771793943, -0.2246292472698408],
+            [0.9771793943, -0.2246292472698408],
+            [0.9819277108, -0.21382108461751564],
+            [0.986013986, -0.204561639596305],
+            [1.008130081, -0.15510335140151288],
+            [1.024691358, -0.11877267173311985],
+            [1.024691358, -0.11877267173311985],
+            [1.032258065, -0.10236848999839723],
+            [1.04, -0.08570840857915707],
+            [1.113402062, 0.06635361059438549],
+            [1.119085174, 0.07770547562280676],
+            [1.119085174, 0.07770547562280676],
+            [1.119085174, 0.07770547562280676],
+            [1.119085174, 0.07770547562280676],
+            [1.125, 0.08945913886768787],
+            [1.126530612, 0.09249062986444889],
+            [1.141494436, 0.12191250806680141],
+            [1.141494436, 0.12191250806680141],
+            [1.151404151, 0.1411854658104449],
+            [1.158415842, 0.15472224506575705],
+            [1.187165775, 0.2093832106135807],
+            [1.194444444, 0.22301184558296286],
+            [1.198198198, 0.2300079664034471],
+            [1.216080402, 0.2630381437520999],
+            [1.226277372, 0.2816561655027545],
+            [1.237288136, 0.3015870141839552],
+            [1.266936039, 0.35438415215752184],
+            [1.266936039, 0.35438415215752184],
+            [1.266936039, 0.35438415215752184],
+            [1.269417476, 0.3587469273516555],
+            [1.274834437, 0.36824129789053534],
+            [1.294117647, 0.40171476147134655],
+            [1.304366812, 0.41930372006382466],
+            [1.304366812, 0.41930372006382466],
+            [1.304366812, 0.41930372006382466],
+            [1.304366812, 0.41930372006382466],
+            [1.304366812, 0.41930372006382466],
+            [1.304366812, 0.41930372006382466],
+            [1.304366812, 0.41930372006382466],
+            [1.34047619, 0.48018956589978806],
+            [1.361581921, 0.5150220070026956],
+            [1.377703827, 0.5412674385857925],
+            [1.378378378, 0.5423588377102907],
+            [1.404255319, 0.5838292722311702],
+            [1.41322314, 0.598023044061495],
+            [1.439205955, 0.6386442364228058],
+            [1.439205955, 0.6386442364228058],
+            [1.439205955, 0.6386442364228058],
+            [1.441558442, 0.6422857972567098],
+            [1.467243511, 0.6816632400851229],
+            [1.495260664, 0.7238374562781754],
+            [1.5, 0.7308933887404757],
+            [1.504716981, 0.7378939048553933],
+            [1.504716981, 0.7378939048553933],
+            [1.504716981, 0.7378939048553933],
+            [1.504716981, 0.7378939048553933],
+            [1.504716981, 0.7378939048553933],
+            [1.504716981, 0.7378939048553933],
+            [1.504716981, 0.7378939048553933],
+            [1.504716981, 0.7378939048553933],
+            [1.52739347, 0.7712448644528425],
+            [1.589285714, 0.8598115321816816],
+            [1.642951252, 0.9338575726036185],
+            [1.642951252, 0.9338575726036185],
+            [1.659397715, 0.9560662232290339],
+            [1.659397715, 0.9560662232290339],
+            [1.659397715, 0.9560662232290339],
+            [1.659397715, 0.9560662232290339],
+            [1.659397715, 0.9560662232290339],
+            [1.659397715, 0.9560662232290339],
+            [1.659397715, 0.9560662232290339],
+            [1.659397715, 0.9560662232290339],
+            [1.714285714, 1.0286233873596076],
+            [1.731958763, 1.0514919855046039],
+            [1.731958763, 1.0514919855046039],
+            [1.765217391, 1.0939020627002896],
+            [1.814049587, 1.1547448168320449],
+            [1.825581395, 1.168873787767413],
+            [1.825581395, 1.168873787767413],
+            [1.825581395, 1.168873787767413],
+            [5.333333333, 3.5592469438834704],
+            [15.33333333, 5.913889088466418],
+          ],
+        },
+        {
+          name: "female-representation-z",
+          label: "Female representation",
+          unit: "%",
+          decimals: 1,
+          step: 0.5,
+          raw_min: 0.0,
+          raw_max: 100.0,
+          raw_mean: 49.97745913286712,
+          points: [
+            [0.0, -2.5047785444375137],
+            [0.0, -2.5047785444375137],
+            [5.660377, -2.221091032592637],
+            [12.616822, -1.87244665137065],
+            [13.793103, -1.8134936354776163],
+            [14.906832, -1.7576755336829344],
+            [15.384615, -1.7337299692915238],
+            [18.232044, -1.5910220034386],
+            [20.0, -1.5024153611102038],
+            [20.588235, -1.4729341014939663],
+            [22.168675, -1.3937253115395296],
+            [23.076923, -1.3482055035309144],
+            [23.529412, -1.3255276846210349],
+            [23.797781, -1.3120774895173644],
+            [23.931438, -1.3053788231283516],
+            [27.165354, -1.1433009132417402],
+            [27.363184, -1.1333859604104057],
+            [28.125, -1.0952052250774351],
+            [28.846154, -1.0590622433042645],
+            [29.264706, -1.0380851657792316],
+            [29.801325, -1.011190833950785],
+            [30.290125, -0.986693125537808],
+            [32.142857, -0.8938375401449995],
+            [32.258065, -0.8880635486836702],
+            [33.160622, -0.8428290784417939],
+            [33.58396, -0.821612100991728],
+            [33.969466, -0.8022912773437799],
+            [34.210526, -0.7902098007032093],
+            [34.875445, -0.7568852718249797],
+            [36.082474, -0.6963911706497212],
+            [36.121673, -0.6944265928036227],
+            [36.363636, -0.6822998565089609],
+            [36.363636, -0.6822998565089609],
+            [36.373111, -0.6818249865162302],
+            [36.55914, -0.672501557169274],
+            [36.91796, -0.6545181503601395],
+            [37.5, -0.6253473529642899],
+            [37.701327, -0.6152572417078694],
+            [37.912088, -0.6046942799183497],
+            [38.461538, -0.5771568689890532],
+            [38.709677, -0.5647205614120758],
+            [39.252336, -0.5375234888265374],
+            [39.772727, -0.5114424646666912],
+            [39.836449, -0.5082488674472867],
+            [39.912281, -0.5044483038169111],
+            [39.991813, -0.500462306275678],
+            [40.0, -0.5000519401994084],
+            [40.506329, -0.4746756777529761],
+            [40.585774, -0.4706940458082991],
+            [41.935484, -0.4030490380783429],
+            [42.105263, -0.39454004492154576],
+            [42.1875, -0.39041847630358884],
+            [42.241379, -0.38771816179708335],
+            [42.784952, -0.3604752652966742],
+            [43.243243, -0.3375065551060696],
+            [43.548387, -0.3222133061094122],
+            [43.820225, -0.3085892889877648],
+            [43.987211, -0.30022026220218334],
+            [44.354839, -0.28179542527597895],
+            [44.444444, -0.2773045628269023],
+            [45.37234, -0.23080013460728094],
+            [45.711798, -0.21378712269792563],
+            [45.714286, -0.21366242106568825],
+            [45.925926, -0.20305541723744308],
+            [46.153846, -0.19163247747328316],
+            [46.666667, -0.16593082959374558],
+            [46.709823, -0.1637679289326718],
+            [46.808511, -0.15882187137330253],
+            [47.413793, -0.1284862466922825],
+            [47.802198, -0.10902009619571482],
+            [47.826087, -0.10782282391573143],
+            [48.275862, -0.08528092503332105],
+            [50.0, 0.0011297083079515628],
+            [50.0, 0.0011297083079515628],
+            [50.0, 0.0011297083079515628],
+            [50.134048, 0.007847948188793601],
+            [50.144725, 0.008383060444204256],
+            [50.251256, 0.01372219895317296],
+            [50.291971, 0.015762759895962413],
+            [50.515464, 0.026963818957608982],
+            [50.620797, 0.03224291659302448],
+            [50.704225, 0.036424174349608006],
+            [50.909091, 0.046691682513022095],
+            [51.70068, 0.08636467229735169],
+            [52.866242, 0.14478049707947171],
+            [53.164557, 0.15973150706448258],
+            [53.509713, 0.17703009432406286],
+            [53.592233, 0.18116584370634303],
+            [53.658537, 0.18448887937873795],
+            [53.773585, 0.19025486724638108],
+            [54.385965, 0.2209462286508485],
+            [54.761905, 0.23978765337086327],
+            [55.555556, 0.2795639845471381],
+            [55.659178, 0.2847573219685756],
+            [56.0, 0.301838713375008],
+            [56.039899, 0.30383836448323376],
+            [57.142857, 0.35911661720175203],
+            [57.303371, 0.3671612831330118],
+            [59.649123, 0.48472605593931234],
+            [60.0, 0.5023113619196442],
+            [60.0, 0.5023113619196442],
+            [60.344828, 0.5195935410697196],
+            [60.57971, 0.5313653870321031],
+            [61.538462, 0.579416290709289],
+            [62.761506, 0.6407130082962759],
+            [63.665803, 0.686034731073402],
+            [63.898305, 0.6976872507299198],
+            [64.102564, 0.7079243667683301],
+            [64.285714, 0.7171035235433861],
+            [64.912281, 0.7485058832277762],
+            [65.120968, 0.7589649022421516],
+            [65.296536, 0.7677640442312802],
+            [65.972222, 0.8016281846021875],
+            [66.037736, 0.8049116477751882],
+            [68.876081, 0.9471642848771084],
+            [69.047619, 0.9557614809030993],
+            [69.621904, 0.9845435917157808],
+            [69.811321, 0.9940367744635156],
+            [70.063694, 1.0066853034894019],
+            [70.289855, 1.0180200552333358],
+            [71.276596, 1.067473651812126],
+            [72.063492, 1.1069114413697558],
+            [72.222222, 1.1148666868164558],
+            [75.505351, 1.2794111884551767],
+            [75.61627, 1.284970166861636],
+            [77.777778, 1.3933009902014117],
+            [77.777778, 1.3933009902014117],
+            [78.571429, 1.4330773362266545],
+            [79.591837, 1.4842183695150726],
+            [79.615385, 1.4853985654819966],
+            [80.19802, 1.514599120209473],
+            [80.224719, 1.5159371904028733],
+            [80.434783, 1.5264652274199446],
+            [81.327801, 1.5712216796879004],
+            [82.242991, 1.6170893099200843],
+            [82.352941, 1.6225998212953905],
+            [82.627119, 1.636341056169465],
+            [84.615385, 1.7359893910117596],
+            [86.666667, 1.8387958043422954],
+            [87.5, 1.8805609617292132],
+            [88.820078, 1.9467208350879077],
+            [98.484848, 2.431101532348341],
+            [100.0, 2.5070379661577493],
+          ],
+        },
+        {
+          name: "procedure-intensity-z",
+          label:
+            "Procedure intensity (0 = clinic-only, 1 = procedure-dominant)",
+          unit: "",
+          decimals: 2,
+          step: 0.005,
+          raw_min: 0.0,
+          raw_max: 1.0,
+          raw_mean: 0.43356643356643354,
+          points: [
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.0, -0.9743549436740495],
+            [0.5, 0.1940619564260586],
+            [0.5, 0.1940619564260586],
+            [0.5, 0.1940619564260586],
+            [0.5, 0.1940619564260586],
+            [0.5, 0.1940619564260586],
+            [0.5, 0.1940619564260586],
+            [0.5, 0.1940619564260586],
+            [0.5, 0.1940619564260586],
+            [0.5, 0.1940619564260586],
+            [0.5, 0.1940619564260586],
+            [0.5, 0.1940619564260586],
+            [0.5, 0.1940619564260586],
+            [0.5, 0.1940619564260586],
+            [0.5, 0.1940619564260586],
+            [0.5, 0.1940619564260586],
+            [0.5, 0.1940619564260586],
+            [0.5, 0.1940619564260586],
+            [0.5, 0.1940619564260586],
+            [0.5, 0.1940619564260586],
+            [0.5, 0.1940619564260586],
+            [0.5, 0.1940619564260586],
+            [0.5, 0.1940619564260586],
+            [0.5, 0.1940619564260586],
+            [0.5, 0.1940619564260586],
+            [0.5, 0.1940619564260586],
+            [0.5, 0.1940619564260586],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+            [1.0, 1.249194393933833],
+          ],
+        },
+      ];
+      const salaryFeatureIndex = features.findIndex(
+        (f) => f.name === "salary-z",
+      );
+      function formatSalary(value) {
+        if (value == null || Number.isNaN(value)) return "salary n/a";
+        return `$${Math.round(value).toLocaleString()}/yr`;
+      }
+      const clusterSummaries = [
+        {
+          cluster: 0,
+          name: "epilepsy",
+          x: 3.3682754795692413,
+          y: -0.07786926613907964,
+          raw_values: [
+            5.0, 2.451100111, 44.29999924, 43.59999847, 370000.0, 0.197,
+            0.8586956522, 54.385965, 0.0,
+          ],
+          z_values: [
+            -0.12298315240268733, -0.6161017287125132, 1.0747434756901948,
+            -0.08350490929166397, -0.47349723448636477, -0.6204450876141847,
+            -0.5128259710547706, 0.2209462286508485, -0.9743549436740495,
+          ],
+        },
+        {
+          cluster: 1,
+          name: "pediatric-otolaryngology",
+          x: -0.22104784566372676,
+          y: 4.2051292905621915,
+          raw_values: [
+            6.0, 2.349999905, 11.60000038, 51.20000076, 613000.0, 0.8260958904,
+            1.439205955, 64.285714, 1.0,
+          ],
+          z_values: [
+            0.7350301776240604, -0.9362932883763775, 0.0939563269527832,
+            1.2333945727057471, 0.9391727496417438, 1.100938172734647,
+            0.6386442364228058, 0.7171035235433861, 1.249194393933833,
+          ],
+        },
+        {
+          cluster: 2,
+          name: "occupational-and-environmental-medicine",
+          x: 2.1676427462946704,
+          y: 2.6516159738647707,
+          raw_values: [
+            3.0, 2.451100111, 0.8000000119, 43.59999847, 365000.0,
+            0.018077734257, 0.8780487805, 37.5, 0.0,
+          ],
+          z_values: [
+            -1.9675743694015608, -0.6161017287125132, -2.2739982743684233,
+            -0.08350490929166397, -0.5115676123334814, -2.2048153352913364,
+            -0.463132118836699, -0.6253473529642899, -0.9743549436740495,
+          ],
+        },
+        {
+          cluster: 3,
+          name: "sports-medicine",
+          x: -3.488461210342272,
+          y: 2.2369209564693655,
+          raw_values: [
+            4.0, 3.144399881, 3.900000095, 43.59999847, 801000.0, 0.1609105181,
+            1.269417476, 33.58396, 0.5,
+          ],
+          z_values: [
+            -0.9433122742408162, 1.2773487210927865, -0.8038213192232779,
+            -0.08350490929166397, 1.687661704515697, -0.8333984010324186,
+            0.3587469273516555, -0.821612100991728, 0.1940619564260586,
+          ],
+        },
+        {
+          cluster: 4,
+          name: "vascular-neurology",
+          x: -4.167558042262161,
+          y: 0.9637909734255521,
+          raw_values: [
+            5.0, 3.345799923, 5.800000191, 51.20000076, 370000.0, 0.197,
+            0.8559322034, 43.548387, 0.0,
+          ],
+          z_values: [
+            -0.12298315240268733, 1.7492762402011286, -0.5442473417720164,
+            1.2333945727057471, -0.47349723448636477, -0.6204450876141847,
+            -0.5200130495996228, -0.3222133061094122, -0.9743549436740495,
+          ],
+        },
+        {
+          cluster: 5,
+          name: "gynecologic-oncology",
+          x: -5.253337097007093,
+          y: 0.9013902929291678,
+          raw_values: [
+            7.0, 3.734400034, 4.099999905, 46.29999924, 410000.0, 0.2517857143,
+            1.125, 79.615385, 1.0,
+          ],
+          z_values: [
+            1.379234517575589, 2.584549329827414, -0.8618799524236185,
+            0.5078948534026219, -0.18625743342647602, -0.3179671384668179,
+            0.08945913886768787, 1.4853985654819966, 1.249194393933833,
+          ],
+        },
+        {
+          cluster: -1,
+          name: "spinal-cord-injury-medicine",
+          x: 2.4856769550699247,
+          y: 2.205041396131989,
+          raw_values: [
+            5.0, 2.451100111, 3.900000095, 43.59999847, 348000.0, 0.3574600783,
+            0.696969697, 56.0, 0.5,
+          ],
+          z_values: [
+            -0.9433122742408162, -0.6161017287125132, -0.8038213192232779,
+            -0.08350490929166397, -0.6450241367879067, 0.20794901306402885,
+            -0.9780956840927263, 0.301838713375008, 0.1940619564260586,
+          ],
+        },
+        {
+          cluster: 6,
+          name: "pediatric-pulmonology",
+          x: 5.117069667441124,
+          y: 3.157422577353844,
+          raw_values: [
+            6.0, 2.599999905, 13.60000038, 38.09999847, 265000.0, 0.8260958904,
+            0.6781609195, 71.276596, 0.0,
+          ],
+          z_values: [
+            0.7350301776240604, -0.1678020653713458, 0.10543010965025151,
+            -1.0406688523927885, -1.4074383943576265, 1.100938172734647,
+            -1.0390933426553222, 1.067473651812126, -0.9743549436740495,
+          ],
+        },
+        {
+          cluster: 7,
+          name: "cardiology",
+          x: -1.6112841603756087,
+          y: 1.5770869694532623,
+          raw_values: [
+            6.0, 2.973500013, 31.39999962, 30.70000076, 634000.0, 0.3574600783,
+            1.266936039, 30.290125, 0.5,
+          ],
+          z_values: [
+            0.7350301776240604, 0.8525464801855491, 0.7697839246337417,
+            -1.8091421351795245, 1.0334249696647426, 0.20794901306402885,
+            0.35438415215752184, -0.986693125537808, 0.1940619564260586,
+          ],
+        },
+        {
+          cluster: 8,
+          name: "hematology-and-medical-oncology",
+          x: -0.1789130737123241,
+          y: 1.4125812502271973,
+          raw_values: [
+            6.0, 2.400000095, 31.39999962, 39.20000076, 587000.0, 0.83575,
+            1.467243511, 45.711798, 0.0,
+          ],
+          z_values: [
+            0.7350301776240604, -0.776253310965476, 0.7697839246337417,
+            -0.8885096607488988, 0.8179014070334426, 1.1104345291215578,
+            0.6816632400851229, -0.21378712269792563, -0.9743549436740495,
+          ],
+        },
+      ];
+      const model = {
+        kind: "multi-head-stack",
+        d_model: 8,
+        d_ff: 12,
+        num_heads: 2,
+        num_layers: 2,
+        feature_count: 9,
+        feature_embeddings: [
+          [
+            0.026211595354429754, -0.017796873376159515, 0.038744122457871184,
+            -0.008175551339311733, 0.01764532496618903, 0.002242988354321703,
+            6.583988733894686e-4, -0.01918535345114683,
+          ],
+          [
+            -0.011242508098008145, -0.004295326031443818, 9.632668992969604e-4,
+            0.004473743141685964, -0.030004884633218914, 0.011203538994240193,
+            0.022827821523385576, 0.04604961345225916,
+          ],
+          [
+            -0.04986960377632255, -0.16977984762870452, -0.13270273264929197,
+            -0.05238986472669917, 0.06866194244010357, -0.019528477188036703,
+            0.11453516984877456, 0.007417938175383134,
+          ],
+          [
+            0.015668935397790414, -0.06438963615246354, 0.034892623570637014,
+            -0.011175619924051243, -0.0029061098250611405,
+            -0.044284830030155195, -0.021842142490739652, 0.05233090360383589,
+          ],
+          [
+            -0.058763492479542705, 0.04943172112286073, -0.0049976993544904305,
+            0.04244809293304432, 0.025499908358687064, -0.05221141745863182,
+            -0.019579939934446403, 0.008210553710617007,
+          ],
+          [
+            5.673026457287927e-4, -0.09605611389031676, -0.03784145315144179,
+            -0.05243221053895146, 0.03873233807305265, -0.10577717394890798,
+            0.023665324131528012, -0.011082354356255394,
+          ],
+          [
+            0.10125992147492476, -0.04133252317798029, -0.0065099466225619525,
+            -0.0943721389195462, 0.09403044990344318, 0.05548824878502767,
+            -0.02239678534879168, -0.015309941670771158,
+          ],
+          [
+            -0.06114346455062388, -0.016817024564845268, -0.06881604565852867,
+            -0.04378718797021442, 0.02285069296591076, -0.08842344844137782,
+            0.10234845433399627, 0.07436420627218568,
+          ],
+          [
+            0.025519321235972545, 0.032689592584607886, 0.05592814427789106,
+            -0.028744583660444276, 0.07387018940415761, -0.04489496862299774,
+            0.017203829033837704, 0.01484787062532758,
+          ],
+        ],
+        scalar_weights: [
+          0.08179156693904113, 0.018785166631705246, 0.05932852666562746,
+          0.040689056028242285, 0.0326679555391464, 0.025113951134193315,
+          -0.10377217893443574, -0.11699186166222295,
+        ],
+        scalar_bias: [
+          -0.012784022481212902, -0.019998276951498275, -0.023984029262853805,
+          -0.027773818620506315, 0.024907101340652653, -0.044764244510891615,
+          0.017718012245543865, 0.005580434098200844,
+        ],
+        layer_heads_wq: [
+          [
+            [
+              [
+                -0.011178438807980676, 0.11277287758424721,
+                8.795073854127161e-4, 0.1437745805160787, -0.06768790050878283,
+                0.07475219123442206, -0.12001003909085023, -0.09736995355618756,
+              ],
+              [
+                -0.06919093948711505, -0.021303457363091974,
+                0.08092620252793517, -0.02803378118140897,
+                -0.005456855194645297, 0.025806288331767218,
+                0.12471314596954243, -0.01812178584016621,
+              ],
+              [
+                0.041204655035078995, -0.03301820344610534, 0.0677221301634943,
+                0.09835788446811555, 0.07778308251456909, 0.0433376632652571,
+                -0.06890028289269652, -0.03556459670520903,
+              ],
+              [
+                -0.01552332926282432, -0.027851802003650623,
+                -0.05519151720514726, 0.12532334219761945, 0.09262697036275372,
+                -0.04144973627079127, -0.07377295544711929,
+                -0.11417529810585642,
+              ],
+            ],
+            [
+              [
+                -0.020718656568729604, -0.07476171176987843,
+                -0.05788408844842306, -0.08658570598264217,
+                0.057718905615369895, -0.08403630315238081,
+                0.029451877561408876, 0.08388588460646641,
+              ],
+              [
+                -0.1291937648134736, -0.03170245665572296, -0.12498420200977996,
+                -0.08374542301508484, -0.04935299224774028,
+                -0.09242912078108599, 0.12516415906731007, 0.10875643932579104,
+              ],
+              [
+                -0.008644812568994978, 0.014293612804380443,
+                0.015053771032455981, -0.12378822632596523,
+                -0.035205669940541036, -0.010336338273334755,
+                0.13570124356256247, 0.10736561243481471,
+              ],
+              [
+                -0.06261700557583161, -0.09112073797999254,
+                -0.15691980545933573, -0.14097107771728046,
+                0.020799678764951948, -0.04635495015595998, 0.13498999301393577,
+                0.13155956719641052,
+              ],
+            ],
+          ],
+          [
+            [
+              [
+                0.08368702967953427, -0.10836388907790896,
+                -0.020189109699107102, -0.012132840825045982,
+                0.010416189280725532, -0.04084902646940878,
+                -0.038757979906175015, 0.04491158773793519,
+              ],
+              [
+                -0.0010071078425412988, -0.015524936817424374,
+                -0.10221350845655548, 0.005839876317498481, -0.0273644423290203,
+                0.043306273593661085, -0.012906581156663509,
+                -0.045266295119502795,
+              ],
+              [
+                0.09078478917321527, -0.10358877972194068,
+                -0.017646653446507368, -0.03545636057080855,
+                -0.006670210111089621, 0.04908785377079087, 0.06260246665210664,
+                -0.012525180539921693,
+              ],
+              [
+                -0.06983345756349152, -0.0018898310007913976,
+                0.01932254497463043, 0.06128315710951905, -0.011031494945805211,
+                0.010826843967058608, -0.056606357976546395,
+                -0.008067581379099173,
+              ],
+            ],
+            [
+              [
+                -0.0059934773711886775, 0.010478477816522011,
+                0.09395052689300741, -0.059633429237266326,
+                0.030821201860031587, 0.09809222881057642, 0.03451374815978507,
+                -0.02924356618351246,
+              ],
+              [
+                0.05590075422411418, -0.07189090869675488, -0.09162684835990462,
+                0.08259779377669658, 0.01793960175075225, -0.043358008703766375,
+                0.019509073961162523, 0.06779213035232481,
+              ],
+              [
+                0.08918811833238065, -0.017375454261541218,
+                -0.12235739454328373, -0.002789446235062736,
+                0.026512058792036105, -0.09403623946982853,
+                -0.018837972465744757, 0.028615193055347054,
+              ],
+              [
+                0.04894978672479297, 0.05802719117041234, 0.0478448046380897,
+                0.047703738266540556, -0.08287387560897393, 0.04187041039027784,
+                -0.0530405979820197, -0.01103383763622387,
+              ],
+            ],
+          ],
+        ],
+        layer_heads_wk: [
+          [
+            [
+              [
+                -0.0417103163266284, -0.13218021945120595, -0.16624806987224236,
+                -0.10802147289462431, 0.03636361109180166, -0.13142336420035114,
+                0.11416860585892669, 0.052975698242495296,
+              ],
+              [
+                -0.04195086536060408, 0.02856371116843893, 0.0780211107756235,
+                -0.014578357564275475, 0.039374951690396696,
+                -0.009122998296141391, -0.014699015780338432,
+                -0.06632689525229214,
+              ],
+              [
+                -0.07156034543519789, -0.01495663045860872,
+                -0.0038187370586301524, -0.08026477225452615,
+                0.02045719118040509, -0.08529351224220734, 0.011086747538056099,
+                0.045211910703029407,
+              ],
+              [
+                -0.11293644304721084, 0.01133819217364929, 0.015175823888471319,
+                0.030549022719747597, -0.1118184707941215, -0.05818791742248417,
+                -0.008300655225093061, 0.10753543577537038,
+              ],
+            ],
+            [
+              [
+                0.0890159920612815, 0.029981484582351118, 0.13939721047939585,
+                0.0028100137683798243, 0.00571242105755682,
+                0.016605800875791277, -0.03562992331520827, -0.0950982093667122,
+              ],
+              [
+                0.07047673702929344, 0.12533261583024827, 0.18408960896184964,
+                0.04531435871093839, 0.03997930052172772, 0.04334390030175863,
+                -0.11398108460824834, -0.11510086260937272,
+              ],
+              [
+                -0.026665010238101448, 0.07819762921690204, 0.12442540382299247,
+                0.08519811364495429, 0.048196763965264296, 0.03342836500042192,
+                -0.09228724415720921, -0.059529896821957605,
+              ],
+              [
+                0.0376663837218781, 0.1613940927883664, 0.16551963848324533,
+                0.04697847520113467, 0.005931783599219632,
+                -0.032198199818461726, -0.12673776036147139,
+                -0.10571631489908072,
+              ],
+            ],
+          ],
+          [
+            [
+              [
+                -0.03445281732051922, -0.014432159644026726,
+                0.08520177910276673, 0.048784859165700335, 0.06902118452695682,
+                -0.10009527528817713, -0.0748119344326947, 0.09485209497178153,
+              ],
+              [
+                0.0174699758830325, -0.01662962947287469, 0.08114242595271269,
+                -0.06994181242901211, 0.04421923697185574,
+                -0.017449305853517692, -0.030886142736791713,
+                0.10430143815659518,
+              ],
+              [
+                0.03747792212008623, 0.10634964384695483, 0.13869089678940927,
+                0.10104471637448964, 0.041034434406402844, -0.04464917238543958,
+                0.04177901637530098, 0.06545167787210998,
+              ],
+              [
+                0.008126599139164636, -0.025930940061586954,
+                -0.09819857067914786, -0.08662525748832918,
+                0.050609207353956784, 0.08325705093846468, -0.0341432795239494,
+                0.022757419889924715,
+              ],
+            ],
+            [
+              [
+                -0.003409403965255054, -0.02817490095719455,
+                -0.021600637722496388, -0.01184824482097637,
+                -0.009915305190326715, -0.04084468068935263,
+                0.005711521761920191, -0.01834337363432012,
+              ],
+              [
+                0.022819638042913, 0.07626785164334327, -0.0046648457103092055,
+                0.059994091475186404, -0.05652905792112707,
+                -0.06148168052435474, -0.05433485624854497,
+                0.002946918719060918,
+              ],
+              [
+                -0.036202441776386325, 0.021045865135608775,
+                0.04344240392056503, 0.11443386516578112, 0.04288354958411255,
+                0.025469651170800894, 0.026420707293906553, 0.04542472096217995,
+              ],
+              [
+                -0.045913331518220614, -0.03878957462593812,
+                0.0027036534508576727, 0.020252783047827242,
+                -0.0536967205657447, 0.0783605769608801, 0.07969318044657914,
+                -0.02692157498723872,
+              ],
+            ],
+          ],
+        ],
+        layer_heads_wv: [
+          [
+            [
+              [
+                0.11695359988203603, 0.11878568440118674, -0.0142464617940328,
+                -0.006773467352941039, 0.04569873205477658, 0.05467371398923108,
+                -0.02641787311273267, -0.10250082330588864,
+              ],
+              [
+                -0.023839502650340568, -0.022134142572039227,
+                -0.02312510845995964, -0.03790238950609008, -0.0525980036492813,
+                0.021304392645800023, 0.15125551945350615, 0.1562657337971121,
+              ],
+              [
+                -0.06728294688420722, -0.045224248645133594,
+                -0.06522819147570902, -0.02704242062382824,
+                -0.06691170735787175, -0.055466246775637607, 0.0446612668873337,
+                0.14546288598355325,
+              ],
+              [
+                -0.05069040626820755, -0.005122992155825205,
+                -0.11662019040410897, -0.1071278714435628,
+                -0.012591184383465702, -0.034842371926740924,
+                0.1762004143924564, 0.142328831079705,
+              ],
+            ],
+            [
+              [
+                -0.007837910051169133, 0.013749134381379702,
+                0.07274017989671568, 0.12349509475119283, -0.14240540370948582,
+                0.07848985601198266, -0.003793496545917758, 0.03326730700857907,
+              ],
+              [
+                -0.17030915528628573, 0.030843662296413943,
+                -0.01313577762620987, -0.018233016754820152,
+                -0.08699641397858665, -0.0016379277323811331,
+                0.1586275457566798, 0.174121084242292,
+              ],
+              [
+                -0.10462454356453983, -0.06972777137644204,
+                -0.06036700887490755, -0.07243405245546103,
+                -0.004038470006998596, -0.0010294112975453224,
+                0.05415091865712831, 0.12296810636171861,
+              ],
+              [
+                0.11260462472740382, -0.03742824500122718, 0.07100851750415312,
+                0.017094739956115056, 0.0602057209696492, 0.019456882076598937,
+                -0.16054266933260086, -0.11159113825944847,
+              ],
+            ],
+          ],
+          [
+            [
+              [
+                -0.0050354758198068485, 0.05214389317169181,
+                -0.02145547645455571, -0.04437307529571971,
+                -0.13422219273267325, 0.09955089184633446, -0.04009190187347652,
+                0.010625077082774183,
+              ],
+              [
+                0.1003655874237923, -0.027602898855909924,
+                0.0022308122102592423, 0.05902399381241358,
+                -0.11087968346303141, 0.09452615190087328, -0.07102182148237265,
+                -0.040647569597666,
+              ],
+              [
+                0.025744462107271323, -0.0060265038264026415,
+                -0.01761472263776339, 0.027054843906214317, 0.0770678192273739,
+                -0.08672549493928354, 0.11109247820794436, 0.05568315507463489,
+              ],
+              [
+                -0.10450987984221038, 0.08959773166848232, -0.04718782558121969,
+                0.05400351962288798, -0.02860452596673461, 0.10951540755762942,
+                -0.04028571100736809, -0.03297347773456671,
+              ],
+            ],
+            [
+              [
+                -0.007858411493200337, 0.030712957821022183,
+                -0.05462715439153908, -0.07259306448096685,
+                -0.02113567024782361, -0.06502293120988474,
+                0.026000068145175814, 0.01233095597987069,
+              ],
+              [
+                0.025743379914926, -0.009576273041509518, -0.05013090252020569,
+                -0.020924457421894315, 0.051878074487585024,
+                -0.039488116754244657, 0.026806809132121804,
+                0.11166484558891378,
+              ],
+              [
+                0.10003015112057816, 0.03509170992943112, 0.04290322492577909,
+                -0.029283259349881307, 0.09323843683703296,
+                -0.08693836819555363, -0.044958731447719176,
+                -0.04673981579935882,
+              ],
+              [
+                -0.02513070820707716, 0.011831978556188831,
+                0.055167738936215356, 0.05804324328777604, -0.14016452640141625,
+                0.14066978163996868, 0.01998443957347871, -0.013090764475599285,
+              ],
+            ],
+          ],
+        ],
+        layer_wo: [
+          [
+            [
+              0.05668263170335962, -0.045597374888836556, 0.014150584443863546,
+              -0.08018680019289504, -0.10252437624420323, -0.20709451722611835,
+              0.0031038954398671438, 0.033312275961122934,
+            ],
+            [
+              0.019738748531723197, 0.09660253354437587, 0.061242785715931114,
+              -0.069663384809463, 0.11049288275254388, 0.03300586207235981,
+              -0.04288234255836068, -0.09849692239341948,
+            ],
+            [
+              -0.009660957817068995, 0.14236441760139873, 0.04364536863459202,
+              0.11816085418949751, 0.01603390235312964, 0.09779433639393013,
+              0.08841892661748241, -0.08970777708857129,
+            ],
+            [
+              0.06815149969390417, -0.09104358470081517, -0.09192001437050731,
+              -0.00479557992584245, -0.015253623180632682, 0.02116238369474604,
+              -0.09569967695844514, -0.02567164086486395,
+            ],
+            [
+              -0.0757995507388419, 0.09743515869804223, 0.0500273835530201,
+              0.10619451053606803, -0.019401839028566868, 0.030820646986968327,
+              0.03393645678449299, -0.01553737186923338,
+            ],
+            [
+              0.07407496763949951, 0.01581211915069377, 0.018091633311278842,
+              -0.07455350040791751, 0.12594468789976068, 0.07413432211162277,
+              0.0056674517625605395, 0.03333947318374428,
+            ],
+            [
+              -0.07800064595803168, 0.15049019716185774, 0.10689910323231604,
+              0.08065304260830118, 0.01991403559247991, 0.021122860916370063,
+              0.13856139126656966, -0.020200924200913378,
+            ],
+            [
+              -0.11190263159005037, 0.1885807126404809, 0.08346845228616254,
+              0.06482280882709442, -0.03104814469009044, 0.18634278033622645,
+              0.09478984301398376, -0.15944515737905468,
+            ],
+          ],
+          [
+            [
+              0.017231731272504065, 0.03479347861801342, 0.02158033832447865,
+              -0.059359747553441304, 0.022127413245552376,
+              -0.012001703922766078, 0.005677447844274675, -0.06104145415624068,
+            ],
+            [
+              0.10182330547189332, 0.09659769425550749, -0.12275497518124384,
+              0.03564873482069991, -0.02557127310470115, -0.0453387352596726,
+              -8.608826026802438e-4, 0.0513039347845149,
+            ],
+            [
+              -0.01317955206612458, -0.04450631273118401, 0.01890101938836837,
+              0.02879666320848707, -8.69824896788928e-4, -0.06612005748841271,
+              -0.007345348098164672, 0.08111523778929108,
+            ],
+            [
+              0.027111992782561645, -0.09727667653279552, -0.004964471470671497,
+              -0.023681195093319105, 0.0765695899179406, -0.036631366315021605,
+              -0.10347552059968422, 0.02619771035410599,
+            ],
+            [
+              0.08204160259362657, 0.1247139370431248, -0.0030259968356967865,
+              0.12590118075186318, 0.10216671705224095, -0.09849562838086463,
+              -0.001841536631933554, 0.09465384770091755,
+            ],
+            [
+              -0.08583293216724217, -0.03724732687911875, -0.03316328338884433,
+              0.02084243529534575, -0.019601151496399523, 0.04065669218418443,
+              0.023944043091611196, -0.021730249424947726,
+            ],
+            [
+              0.01053427088243108, 0.11101272299321083, 0.04021568499238632,
+              -0.03630580294371826, -0.029890401513699136, 0.016764726782349915,
+              -0.05081438086651763, -0.004048182181266588,
+            ],
+            [
+              0.08385079414283567, 0.009289102811825233, 0.0247949459212698,
+              0.03205711452862393, -0.07013755755402545, 0.02743921195087174,
+              -0.07101246774325642, 0.07972540968590522,
+            ],
+          ],
+        ],
+        layer_attention_gain: [
+          [
+            1.0726752690442356, 0.9986851332284746, 1.0236840560252072,
+            1.0412459000226841, 1.011185777996904, 0.97012857993883,
+            1.1379754541370057, 1.133403281713298,
+          ],
+          [
+            1.0065079463679472, 0.9379900994895047, 0.9327124534417282,
+            0.9683378902529164, 1.0563939250760577, 1.079458429165561,
+            0.9996949596660508, 0.9888064823395485,
+          ],
+        ],
+        layer_w1: [
+          [
+            [
+              -0.04217252418439828, 0.004785229394927099, 0.05816631006407147,
+              -0.011537024519741063, -0.026856744279482727,
+              -0.051515776490019566, -0.06380249958843001,
+              -0.007222561028627313,
+            ],
+            [
+              -0.04686454888396811, -0.03043602683462155, -0.09208100923413724,
+              0.019189886841124867, 0.09690597315500935, 0.011940418536004372,
+              -0.08597505298062046, 0.009832116065932846,
+            ],
+            [
+              0.01998288028795738, -0.04045296480112448, -0.0254041222821559,
+              -0.0020202039508009214, 0.029173845095313768, 0.06736484651315397,
+              -0.07408849567792374, 0.027971420625385345,
+            ],
+            [
+              -0.004222910756871057, 0.026337090297411547, 0.03321545015869945,
+              0.05755382771881473, 0.005243886232474084, 0.1104430684124327,
+              -0.06804718276883544, 0.012704864241434324,
+            ],
+            [
+              0.025590034931222725, 0.07490870201672874, 0.0884962179922556,
+              -0.0648502466217461, 0.017721490439686547, 0.12297474439077558,
+              -6.293406725951917e-4, 0.06422852514751824,
+            ],
+            [
+              -0.025437396189540384, -0.04068848934889304, -0.0274207182277129,
+              0.04624876886112026, -0.03961842961560463, 0.05480296148692797,
+              0.06925607887506159, -0.03709057940509125,
+            ],
+            [
+              -0.036007088068790764, -0.069331203614832, -0.04239760267694623,
+              -0.006023836805354052, -0.1021459372417546, 0.07094454028804224,
+              0.09410699046422376, -0.043603253842703464,
+            ],
+            [
+              0.07917053441713884, -0.02718624046660061, 0.06970983375001967,
+              -0.061086493710440094, 0.06384232406251175, 0.011752695347369934,
+              -0.06524899280844954, -0.04827373409077735,
+            ],
+            [
+              0.04849828367837899, -0.01994951214118885, 0.004932924366586056,
+              0.038032723514451076, 0.023584815407537815, 0.06864106759028987,
+              0.042652245635719156, -0.010990181701205453,
+            ],
+            [
+              0.04191932058415788, -0.06776162084094438, -0.031202444587820996,
+              0.05056798994761504, -0.11703577013386164, 0.040199283837853934,
+              -0.029064706376823044, -0.040757761183490386,
+            ],
+            [
+              0.015378446141756867, 0.07154259498154208, 0.031117086251419675,
+              -0.021862683694056778, 0.10037717800943871, -0.023000359399023614,
+              0.05204235310518773, -0.09767671418418228,
+            ],
+            [
+              0.037509273102438685, -2.1660744237883924e-4,
+              0.036600583649939664, -0.03982552934978837, 0.0644019870945486,
+              0.08768883209142089, 0.029461497706138182, 0.07371279402920676,
+            ],
+          ],
+          [
+            [
+              0.017222924991653284, -0.09139693760473215, 0.04801374567470437,
+              -0.01733621158120645, -0.003964238162550453,
+              -0.014403773081619274, -0.04006765179753612,
+              -0.009082351242213401,
+            ],
+            [
+              0.007334560834997015, 0.021308370525746644, 0.007906634638352719,
+              0.003640282310898209, 0.05070258136035832, 0.010239390101211547,
+              0.048819369908219445, 0.09357741926153314,
+            ],
+            [
+              0.038388289503071764, -0.06279973612536055, 0.03681706745162206,
+              0.02459866440701992, 0.08544190697964164, 0.056328920581950985,
+              0.029090903920214004, -0.013854019624355807,
+            ],
+            [
+              0.057697012917454334, 0.009170301875894179, -0.013383841250375096,
+              0.06273242375842569, 0.0882999253204854, -0.05754509951608108,
+              0.056609904353288255, 0.06254885361867062,
+            ],
+            [
+              -0.0663211715250439, -0.05139508534336641, -0.013865944575746116,
+              0.03372385130486038, 0.02345153910583139, -0.026802236360185205,
+              0.036870776752734, -0.10100342923108192,
+            ],
+            [
+              -0.05454294747872862, -0.11008995375453542, 0.0050012435059776025,
+              -0.01851716294002383, -0.04445866595558957, -0.015738405951310853,
+              0.015423129274559435, -0.07608332408786066,
+            ],
+            [
+              -0.010609044157255049, -0.10400831835440219, 0.010483874275898133,
+              0.005164646966834468, 0.05850535635361548, -0.12341047246152065,
+              -0.05558897515555794, 0.03315902859008951,
+            ],
+            [
+              -0.06806866863615404, 0.010109592097928964, -0.0632469494892271,
+              -0.007081757197032009, -0.08978620366223884, 0.031297500148148825,
+              0.05913556645600943, 0.0084822504046789,
+            ],
+            [
+              -0.030596025205303704, -0.07667979448943435, 0.03374526408623253,
+              0.09178693926400062, 0.01076460550382271, 0.019893943804296,
+              0.00910935352607697, -0.053353288568766075,
+            ],
+            [
+              -0.08657604794447922, -0.06536410293152611, 0.04517053088012229,
+              -0.008492797328517078, 0.021481113929277006, 0.0636133941615822,
+              0.05936292033287224, -0.031951064894395045,
+            ],
+            [
+              0.04891951549287836, 0.012312918446650325, -0.005786348675796377,
+              -0.04842638520200848, 0.05608028697439112, 0.012066242069183965,
+              0.06953798673429627, -0.024965879788653604,
+            ],
+            [
+              0.0625116311095224, 0.008488678661040729, 0.09630584130011302,
+              -0.015586135979047662, 0.09356143794312065, -0.09723248131667354,
+              7.992536858350944e-4, -0.05274816854344375,
+            ],
+          ],
+        ],
+        layer_b1: [
+          [
+            0.05853972485507393, 0.07155126295486619, 0.016205173949073802,
+            -0.013034137682542272, -0.03398203029334081, -0.06611865625984478,
+            -0.05435642676796155, 0.06995232824445481, -0.007054400466956075,
+            -0.03335616127752219, 0.032217383959553265, -0.010696990440144239,
+          ],
+          [
+            0.04454133464609739, 0.03382566202940554, 0.0012830898786525108,
+            0.08335154900890303, 0.045712983392604455, 0.035456864673789376,
+            0.07898014256639274, -0.08269350924366892, 0.07321922233534453,
+            -0.019768296146419163, -0.022692639581510517, 0.08642464832583774,
+          ],
+        ],
+        layer_w2: [
+          [
+            [
+              -0.016995082266060026, 0.0528128207433289, 0.07670814408777119,
+              0.05045748635900273, -0.05113324896312823, -0.046576403401386024,
+              0.03300306081863405, -0.005391035994354533, 0.027987891851135253,
+              -0.058174164784123475, 0.062046259370034766, -0.11458373857559477,
+            ],
+            [
+              -0.03188511265538603, -0.07054144676880741, 0.00219457830765726,
+              0.04842936447997914, 0.0721579691984775, 0.022373223527563067,
+              0.05818154630495293, -0.049586276145521475, 0.04053863527094117,
+              0.10479622052756372, -0.07702295956330162, 0.05299773519069239,
+            ],
+            [
+              -0.03568616429483597, -0.022183090071032734,
+              -0.013276913961157372, 0.0442263494607246, 0.046304341222040885,
+              0.08720209574390275, 0.05252646591612698, -0.14555440525529625,
+              0.001638741847314849, -0.0340271392281641, -0.017757665514659612,
+              -0.0036070189864817388,
+            ],
+            [
+              -0.0392756090103961, 0.04229367687494973, 0.06252437115806037,
+              0.03262732419690034, 0.06660500051451472, -0.04270065075656806,
+              0.016376036289671603, -0.0461586373970899, 0.027419809468217916,
+              -0.0719968424240637, -0.04590059399241975, 0.09317164025370867,
+            ],
+            [
+              0.07635672890857917, 6.699163897100979e-4, -0.01122673123164657,
+              -0.008769905930619453, -0.04845140201207649,
+              -0.033991814916256156, 0.0882888044607661, -0.0025651528657369936,
+              -0.03559473787441317, 0.03234265801466342, -0.05519532461781752,
+              -0.04051718705299418,
+            ],
+            [
+              -0.004726964613040426, -0.04960589408021656, 0.033028171791125285,
+              -0.0212747711245546, -0.020911414885401044, 0.036415747353398364,
+              0.046559782549883855, -0.0627810328023198, -0.03849616077637006,
+              -0.04596540760675277, -0.003604761145629536, -0.06943080663519115,
+            ],
+            [
+              -0.06381009061579887, 0.07671167801482504, 0.03966390468913638,
+              -0.009985227426033713, 0.04164800009297725, -0.03934903255817627,
+              -0.06452608270688448, 0.047730421095971934,
+              -0.0034406386237271114, -0.06904709779220597,
+              -0.03464673488903766, 0.0955073660151105,
+            ],
+            [
+              0.04065613731046701, -0.04765379891667614, 0.014437653362034593,
+              0.07532343540832685, 0.05441114230766456, 0.005166233140186601,
+              0.02996725004798201, 0.012029697019179442, 0.02546456212368222,
+              -0.06510796039746813, 0.042174512277564566, 1.3312966177741933e-4,
+            ],
+          ],
+          [
+            [
+              0.010239846050835867, -0.04495409844520295, -0.017772517714514713,
+              -0.044659611000422345, 0.11501032053363242, 0.09773855975120577,
+              0.09766380368186858, 0.029305018469750144, 0.06061466847882558,
+              0.04763997902926475, -0.02948068582997077, 0.026294532837608058,
+            ],
+            [
+              0.01814588840189062, -0.0673685090749714, 0.03722573756086418,
+              -0.08467108470729616, 0.05514377789384531, 0.015303838259892268,
+              -0.07693630885605128, 0.03919407616703922, -0.027611147863772927,
+              0.07788031120041679, 0.0019293930078804567, -0.05933620238607074,
+            ],
+            [
+              -0.09146045493336384, 0.049205947554544736, -0.06178157062498484,
+              -0.04698146066706146, 0.011002055052097441, -0.0986369879257274,
+              -0.03791248416228453, 0.008957073511659534, 0.02894537742679983,
+              0.058242792130949246, 0.011838884217644053, -0.11210926107822736,
+            ],
+            [
+              -0.031632248185215185, 0.044844828532722446, 0.07255320995765387,
+              -0.07882533884740782, -0.05657930922489226, -0.056711877596824285,
+              -0.0017003050509469856, 0.04510328969569734, -0.06747034841398197,
+              0.00843724661419925, 0.07183242114587729, 0.009024140101319491,
+            ],
+            [
+              0.011585306950337668, -0.04889643116724046, -0.09210575264159246,
+              -0.08261846166470747, -0.09696912791383917, 0.003739087811868895,
+              -0.06062795601271159, -0.0015319305756279363,
+              -0.03531385295019962, -0.03683213641764079, -0.03350288614273814,
+              -0.060734629661475366,
+            ],
+            [
+              0.06342086614880585, -0.04970019916496723, -0.058683402799518745,
+              -0.039613441062902766, 0.013672894360352713, 0.05052396024069494,
+              0.03545234023245375, 0.0010242433725327759, 0.004547576555565271,
+              -0.058676158239141664, -0.04836844936463358,
+              2.6045288986107653e-4,
+            ],
+            [
+              0.047308584314584456, 0.06070641701881442, -0.05531258434084434,
+              0.02129511621200957, 0.03165740835829726, 0.007853765141700775,
+              0.030470113528690723, -0.0687991515158878, -0.04347358916160204,
+              -0.05236197715069911, 0.004761017743726092, 0.012423831020755163,
+            ],
+            [
+              -0.038309806166832175, -0.03087981897542462, 0.026572583787991568,
+              -0.0239326455285009, -0.01960346913288563, -0.10990702353091676,
+              -0.04301533211395148, 0.05274280542480014, -0.02191863889557759,
+              0.01626126052061425, -0.05366478577183528, 0.04854431618777086,
+            ],
+          ],
+        ],
+        layer_b2: [
+          [
+            0.053005838911079906, -0.0892918424214181, -0.06572285241996051,
+            -0.044459397129495024, 0.008096555514142359, -0.0841321341644712,
+            0.04841773967832763, -0.009240408971073871,
+          ],
+          [
+            0.04040608135150611, -0.08684130752781338, -0.05221975078588786,
+            -0.06349209639858577, -0.06148013599526054, -0.036879928796177915,
+            0.057524790502519775, -0.028446522025131378,
+          ],
+        ],
+        layer_ffn_gain: [
+          [
+            0.909158545516074, 0.9656727590963756, 0.9835844319742524,
+            0.9859423288499758, 1.0258727028912094, 1.0101528919594545,
+            0.9911021484015166, 0.990956687537817,
+          ],
+          [
+            0.9937865429130633, 1.0133142099636376, 0.9609834211198401,
+            0.9443659134618073, 1.0070229087798537, 1.0154717522699017,
+            0.9798929448259346, 0.9819215497650162,
+          ],
+        ],
+        final_norm_gain: [
+          1.1281234766379555, 1.1404410629104926, 1.1059114550660734,
+          1.101219872746462, 1.0204476033007068, 1.1197289221421598,
+          1.1453417733463336, 1.1881994589830227,
+        ],
+        output_weights: [
+          [
+            -0.16441143098689512, -0.07276298789668739, 0.12751457388402265,
+            0.002623696435244173, 0.07092014643712206, -0.07283517280707635,
+            0.18862650980826481, 0.24245933293286476,
+          ],
+          [
+            0.12782594389619767, -0.2070223403420418, -0.15099022690935007,
+            -0.1560695908343109, -0.040885029298423255, -0.11478684252322502,
+            0.12154100805434381, -0.09056117502042738,
+          ],
+        ],
+        output_bias: [0.06429855510076063, 0.14278259940406954],
+      };
+
+      // ---- JavaScript port of smc-trainer/transformer.lisp's inference
+      // path (TRANSFORMER-FORWARD and everything it calls). Inference only;
+      // no autodiff needed client-side. Each function names the Lisp
+      // function it mirrors. Cross-checked against smc-trainer/predict.lisp
+      // on hand-built fixtures before this template was used for real. ----
+      const EPSILON = 1e-6;
+
+      function dot(a, b) {
+        // ad-dot
+        let sum = 0;
+        for (let i = 0; i < a.length; i += 1) sum += a[i] * b[i];
+        return sum;
+      }
+      function matVec(matrix, vector, bias) {
+        // ad-matvec
+        const result = new Array(matrix.length);
+        for (let r = 0; r < matrix.length; r += 1) {
+          result[r] = dot(matrix[r], vector) + (bias ? bias[r] : 0);
+        }
+        return result;
+      }
+      function vectorAdd(a, b) {
+        // ad-vector+
+        const result = new Array(a.length);
+        for (let i = 0; i < a.length; i += 1) result[i] = a[i] + b[i];
+        return result;
+      }
+      function rmsNormalize(vector) {
+        // ad-rms-normalize
+        let sumSquares = 0;
+        for (let i = 0; i < vector.length; i += 1)
+          sumSquares += vector[i] * vector[i];
+        const denominator = Math.sqrt(sumSquares / vector.length + EPSILON);
+        return vector.map((x) => x / denominator);
+      }
+      function rmsNormalizeWithGain(vector, gain) {
+        // ad-rms-normalize-with-gain
+        const normalized = rmsNormalize(vector);
+        return normalized.map((x, i) => x * gain[i]);
+      }
+      function softmax(scores) {
+        // ad-softmax
+        const maximum = Math.max(...scores);
+        const exponentials = scores.map((s) => Math.exp(s - maximum));
+        const total = exponentials.reduce((a, b) => a + b, 0);
+        return exponentials.map((e) => e / total);
+      }
+      function featureTokens(m, input) {
+        // transformer-feature-tokens
+        if (input.length !== m["feature_count"]) {
+          throw new Error(
+            `Expected ${m["feature_count"]} input features, received ${input.length}.`,
+          );
+        }
+        const dModel = m["d_model"];
+        return input.map((value, feature) => {
+          const identity = m["feature_embeddings"][feature];
+          const token = new Array(dModel);
+          for (let c = 0; c < dModel; c += 1) {
+            token[c] =
+              identity[c] +
+              m["scalar_weights"][c] * value +
+              m["scalar_bias"][c];
+          }
+          return token;
+        });
+      }
+      function legacySelfAttention(m, tokens) {
+        // transformer-self-attention (version 1)
+        const d = m["d_model"];
+        const queries = tokens.map((x) => matVec(m.wq, x));
+        const keys = tokens.map((x) => matVec(m.wk, x));
+        const values = tokens.map((x) => matVec(m.wv, x));
+        const scale = Math.sqrt(d);
+        return queries.map((query) => {
+          const probabilities = softmax(
+            keys.map((key) => dot(query, key) / scale),
+          );
+          const mixed = new Array(d).fill(0);
+          for (let c = 0; c < d; c += 1) {
+            let weighted = 0;
+            for (let t = 0; t < probabilities.length; t += 1)
+              weighted += probabilities[t] * values[t][c];
+            mixed[c] = weighted;
+          }
+          return matVec(m.wo, mixed);
+        });
+      }
+      function legacyFeedForward(m, state) {
+        // transformer-feed-forward (version 1)
+        const hidden = matVec(m.w1, state, m.b1).map(Math.tanh);
+        return matVec(m.w2, hidden, m.b2);
+      }
+      function legacyBlock(m, tokens) {
+        // transformer-block (version 1)
+        const attention = legacySelfAttention(m, tokens);
+        const afterAttention = tokens.map((token, i) =>
+          rmsNormalize(vectorAdd(token, attention[i])),
+        );
+        return afterAttention.map((state) =>
+          rmsNormalize(vectorAdd(state, legacyFeedForward(m, state))),
+        );
+      }
+      function multiHeadAttention(m, layerIndex, tokens) {
+        // transformer-multihead-attention
+        const dModel = m["d_model"],
+          numHeads = m["num_heads"],
+          dHead = dModel / numHeads;
+        const tokenCount = tokens.length;
+        const headsWq = m["layer_heads_wq"][layerIndex];
+        const headsWk = m["layer_heads_wk"][layerIndex];
+        const headsWv = m["layer_heads_wv"][layerIndex];
+        const wo = m["layer_wo"][layerIndex];
+        const scale = Math.sqrt(dHead);
+        const headOutputs = new Array(numHeads);
+        for (let head = 0; head < numHeads; head += 1) {
+          const queries = tokens.map((x) => matVec(headsWq[head], x));
+          const keys = tokens.map((x) => matVec(headsWk[head], x));
+          const values = tokens.map((x) => matVec(headsWv[head], x));
+          const mixed = new Array(tokenCount);
+          for (let qi = 0; qi < tokenCount; qi += 1) {
+            const probabilities = softmax(
+              keys.map((key) => dot(queries[qi], key) / scale),
+            );
+            const result = new Array(dHead).fill(0);
+            for (let c = 0; c < dHead; c += 1) {
+              let weighted = 0;
+              for (let t = 0; t < tokenCount; t += 1)
+                weighted += probabilities[t] * values[t][c];
+              result[c] = weighted;
+            }
+            mixed[qi] = result;
+          }
+          headOutputs[head] = mixed;
+        }
+        const result = new Array(tokenCount);
+        for (let ti = 0; ti < tokenCount; ti += 1) {
+          const concatenated = new Array(dModel);
+          for (let head = 0; head < numHeads; head += 1) {
+            const piece = headOutputs[head][ti];
+            for (let c = 0; c < dHead; c += 1)
+              concatenated[head * dHead + c] = piece[c];
+          }
+          result[ti] = matVec(wo, concatenated);
+        }
+        return result;
+      }
+      function feedForwardLayer(m, layerIndex, state) {
+        // transformer-feed-forward-layer
+        const hidden = matVec(
+          m["layer_w1"][layerIndex],
+          state,
+          m["layer_b1"][layerIndex],
+        ).map(Math.tanh);
+        return matVec(
+          m["layer_w2"][layerIndex],
+          hidden,
+          m["layer_b2"][layerIndex],
+        );
+      }
+      function encoderLayer(m, layerIndex, tokens) {
+        // transformer-encoder-layer
+        const attentionGain = m["layer_attention_gain"][layerIndex];
+        const ffnGain = m["layer_ffn_gain"][layerIndex];
+        const normed = tokens.map((token) =>
+          rmsNormalizeWithGain(token, attentionGain),
+        );
+        const attended = multiHeadAttention(m, layerIndex, normed);
+        const afterAttention = tokens.map((token, i) =>
+          vectorAdd(token, attended[i]),
+        );
+        const normed2 = afterAttention.map((token) =>
+          rmsNormalizeWithGain(token, ffnGain),
+        );
+        const ffnOut = normed2.map((state) =>
+          feedForwardLayer(m, layerIndex, state),
+        );
+        return afterAttention.map((token, i) => vectorAdd(token, ffnOut[i]));
+      }
+      function encoderStack(m, tokens) {
+        // transformer-encoder-stack
+        let state = tokens;
+        for (
+          let layerIndex = 0;
+          layerIndex < m["num_layers"];
+          layerIndex += 1
+        ) {
+          state = encoderLayer(m, layerIndex, state);
+        }
+        return state.map((token) =>
+          rmsNormalizeWithGain(token, m["final_norm_gain"]),
+        );
+      }
+      function meanPool(encoded, dModel) {
+        // transformer-mean-pool
+        const pooled = new Array(dModel).fill(0);
+        for (let c = 0; c < dModel; c += 1) {
+          let sum = 0;
+          for (let i = 0; i < encoded.length; i += 1) sum += encoded[i][c];
+          pooled[c] = sum / encoded.length;
+        }
+        return pooled;
+      }
+      function transformerForward(m, input) {
+        // transformer-forward
+        const tokens = featureTokens(m, input);
+        const encoded =
+          m.kind === "legacy-single-head"
+            ? legacyBlock(m, tokens)
+            : encoderStack(m, tokens);
+        const pooled = meanPool(encoded, m["d_model"]);
+        return matVec(m["output_weights"], pooled, m["output_bias"]);
+      }
+
+      // ---- Page wiring ----
+      const root = document.querySelector("#app");
+      const featuresDiv = document.querySelector("#features");
+      const resultDiv = document.querySelector("#result");
+      const tip = root.querySelector(".tip");
+      const svg = d3.select("svg");
+      const series = [...d3.schemeTableau10, ...d3.schemeSet3];
+      const clusters = [...new Set(atlasPoints.map((p) => p.cluster))].sort(
+        (a, b) => a - b,
+      );
+      const color = d3.scaleOrdinal(clusters, series);
+      const clusterSummaryById = new Map(
+        clusterSummaries.map((c) => [c.cluster, c]),
+      );
+
+      function titleCase(id) {
+        return id.replace(/-/g, " ").replace(/\b\w/g, (ch) => ch.toUpperCase());
+      }
+
+      function placeAtCluster(clusterInfo) {
+        // Move the sliders to this specialty's raw values (for display only),
+        // but feed the model its exact stored z-vector rather than re-deriving
+        // z from those raw values via interpolate(): several features (training
+        // duration especially) have many specialties sharing the same raw value
+        // with genuinely different z-scores, so raw->z is not a true function
+        // and interpolating back through it can silently land on a different,
+        // wrong specialty's position. clusterInfo.z_values sidesteps that.
+        clusterInfo.raw_values.forEach((value, i) => {
+          document.getElementById(`f${i}`).value = value;
+        });
+        update(clusterInfo.z_values);
+      }
+
+      // Each feature carries a `points` table -- (raw, z) pairs for all 143
+      // specialties, sorted by raw value -- built in build-preferences-page.lisp
+      // by joining this corpus against examples/specialty-points-raw.csv.
+      // Interpolating through it converts a human-readable raw slider value
+      // (years, dollars, percent, ...) into the z-scored number the trained
+      // Transformer actually expects, without needing to know or replicate
+      // whatever upstream standardization formula produced that z originally.
+      function interpolate(points, x) {
+        if (x <= points[0][0]) return points[0][1];
+        const last = points[points.length - 1];
+        if (x >= last[0]) return last[1];
+        let lo = 0,
+          hi = points.length - 1;
+        while (hi - lo > 1) {
+          const mid = (lo + hi) >> 1;
+          if (points[mid][0] <= x) lo = mid;
+          else hi = mid;
+        }
+        const [x0, y0] = points[lo],
+          [x1, y1] = points[hi];
+        const t = x1 === x0 ? 0 : (x - x0) / (x1 - x0);
+        return y0 + t * (y1 - y0);
+      }
+
+      function formatRaw(feature, value) {
+        const decimals = feature.decimals ?? 1;
+        if (feature.unit === "%") return `${value.toFixed(decimals)}%`;
+        if (feature.unit === "$/year")
+          return `$${Math.round(value).toLocaleString()}/yr`;
+        if (!feature.unit) return value.toFixed(decimals);
+        return `${value.toFixed(decimals)} ${feature.unit}`;
+      }
+
+      function currentInput() {
+        return features.map((feature, i) => {
+          const raw = Number(document.getElementById(`f${i}`).value);
+          return interpolate(feature.points, raw);
+        });
+      }
+
+      features.forEach((feature, i) => {
+        const row = document.createElement("div");
+        row.className = "feature-row";
+        const step =
+          feature.step || (feature.raw_max - feature.raw_min) / 200 || 0.01;
+        row.innerHTML = `
+          <label>
+            <span>${feature.label}</span>
+            <span class="value" id="v${i}"></span>
+          </label>
+          <div class="meta">typical range: ${formatRaw(feature, feature.raw_min)} – ${formatRaw(feature, feature.raw_max)}</div>
+          <input type="range" id="f${i}" min="${feature.raw_min}" max="${feature.raw_max}"
+                 step="${step}" value="${feature.raw_mean}">
+        `;
+        featuresDiv.appendChild(row);
+      });
+
+      function positionTooltip(event) {
+        const gap = 12;
+        const left =
+          event.clientX + gap + tip.offsetWidth > innerWidth - gap
+            ? event.clientX - tip.offsetWidth - gap
+            : event.clientX + gap;
+        tip.style.left = `${Math.max(gap, Math.min(left, innerWidth - tip.offsetWidth - gap))}px`;
+        const top =
+          event.clientY + gap + tip.offsetHeight > innerHeight
+            ? event.clientY - tip.offsetHeight - gap
+            : event.clientY + gap;
+        tip.style.top = `${Math.max(0, Math.min(top, innerHeight - tip.offsetHeight))}px`;
+      }
+
+      let you = { x: 0, y: 0 };
+
+      function draw() {
+        const width = Math.max(420, root.clientWidth * 0.62);
+        const height = Math.max(420, Math.min(680, width * 0.72));
+        const margin = { top: 16, right: 24, bottom: 46, left: 60 };
+        svg.attr("viewBox", `0 0 ${width} ${height}`).selectAll("*").remove();
+
+        const allX = [...atlasPoints.map((p) => p.x), you.x];
+        const allY = [...atlasPoints.map((p) => p.y), you.y];
+        const x = d3
+          .scaleLinear()
+          .domain(d3.extent(allX))
+          .nice()
+          .range([margin.left, width - margin.right]);
+        const y = d3
+          .scaleLinear()
+          .domain(d3.extent(allY))
+          .nice()
+          .range([height - margin.bottom, margin.top]);
+
+        svg
+          .append("g")
+          .attr("transform", `translate(0,${height - margin.bottom})`)
+          .call(d3.axisBottom(x));
+        svg
+          .append("g")
+          .attr("transform", `translate(${margin.left},0)`)
+          .call(d3.axisLeft(y));
+
+        svg
+          .append("g")
+          .selectAll("circle")
+          .data(atlasPoints)
+          .join("circle")
+          .attr("cx", (p) => x(p.x))
+          .attr("cy", (p) => y(p.y))
+          .attr("r", 4.5)
+          .attr("fill", (p) => color(p.cluster))
+          .attr("opacity", 0.72)
+          .on("pointerenter", (event, p) => {
+            tip.style.display = "block";
+            tip.innerHTML =
+              `<b>${p.id}</b><br><b>${formatSalary(p.salary)}</b>` +
+              `<br>Cluster ${p.cluster}: ${p.label ?? "unlabeled"}` +
+              `<br>x=${p.x.toFixed(3)}, y=${p.y.toFixed(3)}`;
+            positionTooltip(event);
+          })
+          .on("pointermove", positionTooltip)
+          .on("pointerleave", () => (tip.style.display = "none"));
+
+        const star = d3.symbol().type(d3.symbolStar).size(340);
+        svg
+          .append("path")
+          .attr("transform", `translate(${x(you.x)},${y(you.y)})`)
+          .attr("d", star)
+          .attr("fill", "#dc2626")
+          .attr("stroke", "#111827")
+          .attr("stroke-width", 2)
+          .on("pointerenter", (event) => {
+            tip.style.display = "block";
+            tip.innerHTML =
+              `<b>Your placed specialty</b><br><b>${formatSalary(you.salary)}</b>` +
+              `<br>x=${you.x.toFixed(3)}, y=${you.y.toFixed(3)}` +
+              `<br>Nearest: ${you.nearest.point.id} (${formatSalary(you.nearest.point.salary)}, cluster ${you.nearest.point.cluster})`;
+            positionTooltip(event);
+          })
+          .on("pointermove", positionTooltip)
+          .on("pointerleave", () => (tip.style.display = "none"));
+
+        const legend = d3.select("#legend");
+        legend.selectAll("*").remove();
+        clusters.forEach((cluster) => {
+          const info = clusterSummaryById.get(cluster);
+          const item = legend
+            .append("span")
+            .attr("class", "legend-item legend-clickable")
+            .attr("tabindex", "0")
+            .attr(
+              "title",
+              info
+                ? `Representative specialty for this cluster — click to place your sliders at ${titleCase(info.name)}'s values`
+                : "Click to place your sliders at this cluster's representative specialty",
+            )
+            .on("click", () => {
+              if (info) placeAtCluster(info);
+            })
+            .on("keydown", (event) => {
+              if (info && (event.key === "Enter" || event.key === " "))
+                placeAtCluster(info);
+            });
+          item
+            .append("span")
+            .attr("class", "legend-swatch")
+            .style("background", color(cluster));
+          item
+            .append("span")
+            .text(info ? titleCase(info.name) : `Cluster ${cluster}`);
+        });
+        const youItem = legend.append("span").attr("class", "legend-item");
+        youItem.append("span").attr("class", "legend-you");
+        youItem
+          .append("span")
+          .text("Your placed specialty (follows the sliders live)");
+      }
+
+      function nearest(point) {
+        let best = null,
+          bestDistance = Infinity;
+        for (const p of atlasPoints) {
+          const d2 = (p.x - point.x) ** 2 + (p.y - point.y) ** 2;
+          if (d2 < bestDistance) {
+            bestDistance = d2;
+            best = p;
+          }
+        }
+        return { point: best, distance: Math.sqrt(bestDistance) };
+      }
+
+      function update(overrideInput) {
+        const input = overrideInput || currentInput();
+        features.forEach((feature, i) => {
+          const raw = Number(document.getElementById(`f${i}`).value);
+          document.getElementById(`v${i}`).textContent = formatRaw(
+            feature,
+            raw,
+          );
+        });
+        const [px, py] = transformerForward(model, input);
+        const youSalary =
+          salaryFeatureIndex >= 0
+            ? Number(document.getElementById(`f${salaryFeatureIndex}`).value)
+            : null;
+        you = {
+          x: px,
+          y: py,
+          input,
+          nearest: nearest({ x: px, y: py }),
+          salary: youSalary,
+        };
+        const { point, distance } = you.nearest;
+        resultDiv.innerHTML =
+          `<b>Your specialty is placed at x=${px.toFixed(3)}, y=${py.toFixed(3)}</b>` +
+          `Nearest existing specialty: <b>${point.id}</b> ` +
+          `(cluster ${point.cluster}: ${point.label ?? "unlabeled"}), distance ${distance.toFixed(3)}`;
+        draw();
+      }
+
+      featuresDiv.addEventListener("input", () => update());
+      document.getElementById("reset").addEventListener("click", () => {
+        features.forEach((feature, i) => {
+          document.getElementById(`f${i}`).value = feature.raw_mean;
+        });
+        update();
+      });
+      new ResizeObserver(draw).observe(root);
+      update();
+    </script>
+  </body>
+</html>
