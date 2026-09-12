@@ -569,6 +569,46 @@
           .attr("transform", `translate(${margin.left},0)`)
           .call(d3.axisLeft(y));
 
+        // Density contours summarize the fixed atlas, excluding the user marker.
+        svg
+          .append("defs")
+          .append("clipPath")
+          .attr("id", "atlas-contour-clip")
+          .append("rect")
+          .attr("x", margin.left)
+          .attr("y", margin.top)
+          .attr("width", width - margin.left - margin.right)
+          .attr("height", height - margin.top - margin.bottom);
+
+        const density = d3
+          .contourDensity()
+          .x((point) => x(point.x))
+          .y((point) => y(point.y))
+          .size([width, height])
+          .bandwidth(24)
+          .thresholds(8);
+        const contourLayer = svg
+          .append("g")
+          .attr("class", "atlas-contours")
+          .attr("clip-path", "url(#atlas-contour-clip)")
+          .attr("pointer-events", "none");
+
+        for (const cluster of clusters) {
+          const members = atlasPoints.filter((point) => point.cluster === cluster);
+          // Noise is not a cluster; isolated observations have no density outline.
+          if (cluster < 0 || members.length < 3) continue;
+          contourLayer
+            .append("g")
+            .selectAll("path")
+            .data(density(members))
+            .join("path")
+            .attr("d", d3.geoPath())
+            .attr("fill", "none")
+            .attr("stroke", color(cluster))
+            .attr("stroke-opacity", 0.5)
+            .attr("stroke-width", 1);
+        }
+
         svg
           .append("g")
           .selectAll("circle")
