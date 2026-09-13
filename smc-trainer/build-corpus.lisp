@@ -33,7 +33,7 @@
                               sum (* delta delta))
                         (max 1 (1- rows))))))
         (setf (aref means column) mean
-              (aref scales column) (if (zerop scale) 1.0d0 scale))))
+              (aref scales column) (if (< scale 1.0d-6) 1.0d0 scale))))
     (values means scales)))
 
 (defun parametric-standardize (array means scales)
@@ -112,7 +112,8 @@
            (embedding-dbscan (embedding-standardized-coordinates coordinates)
                              epsilon
                              (or (getf settings :minimum-points) 5)))
-         (validation-groups (parametric-validation-groups used-records))
+         (validation-groups (unless (getf settings :no-validation-split)
+                              (parametric-validation-groups used-records)))
          (output-path (pathname output-name)))
     (unless (and (= (array-rank coordinates) 2)
                  (= (array-dimension coordinates 0) used-count)

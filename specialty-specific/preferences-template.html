@@ -142,6 +142,9 @@
         border-radius: 50%;
         display: inline-block;
       }
+      .legend-target { display: inline-block; width: 15px; height: 15px;
+        border: 2px solid #2563eb; border-radius: 50%;
+        background: rgba(37, 99, 235, 0.13); box-sizing: border-box; }
       .legend-you {
         /* Matches the plot's d3.symbolStar marker (a 5-point star), not a
            pentagon, so the legend key and the plotted symbol agree. */
@@ -164,6 +167,11 @@
         );
       }
     </style>
+    <script
+      data-goatcounter="https://specialty-umap.goatcounter.com/count"
+      async
+      src="https://gc.zgo.at/count.js"
+    ></script>
   </head>
   <body>
     <main id="app">
@@ -173,12 +181,10 @@
         (<code>smc-trainer/transformer.lisp</code>) places your preferred
         specialty on the atlas live — the red star is your placement, and it
         moves the instant you touch a slider; wherever the sliders sit right now
-        <b>is</b> where your specialty is placed. Each cluster in the legend is
-        labeled with the specialty closest to its center, as a
-        <i>representative example</i> — the cluster is the whole group of
-        similar specialties, not just the one lending its name. Click a
-        cluster's name to jump every slider to that representative specialty's
-        own values. The prediction runs entirely in this page (a JavaScript port
+        <b>is</b> where your specialty is placed. Cluster names describe the
+        specialties they contain. Click a cluster name to set the sliders to a
+        representative specialty; a blue circle marks that specialty's atlas
+        position so you can compare it with the Transformer's red star. The prediction runs entirely in this page (a JavaScript port
         of <code>transformer-forward</code>) using the model exactly as trained.
       </p>
       <div class="layout">
@@ -191,8 +197,8 @@
           <svg role="img"></svg>
           <div class="legend" id="legend"></div>
           <p class="legend-hint">
-            Click a cluster's name above to jump every slider to that cluster's
-            representative specialty.
+            Click a cluster name to mark its representative specialty with a
+            blue circle. The red star shows the Transformer's placement.
           </p>
         </div>
       </div>
@@ -448,12 +454,28 @@
         return id.replace(/-/g, " ").replace(/\b\w/g, (ch) => ch.toUpperCase());
       }
 
+      const clusterNames = new Map([
+        [0, "Clinical medicine and diagnostic specialties"],
+        [1, "Surgical and procedural specialties"],
+        [2, "Primary, emergency and preventive care"],
+        [3, "Surgery, radiology and high-intensity care"],
+        [4, "Neurologic and pediatric specialties"],
+        [5, "Obstetric and gynecologic specialties"],
+        [6, "Pediatric subspecialties"],
+        [7, "Cardiology and gastroenterology"],
+        [8, "Oncology and critical care"],
+        [-1, "Unclustered specialties"],
+      ]);
+      const clusterName = (cluster) => clusterNames.get(cluster) ?? `Cluster ${cluster}`;
+      let selectedCluster = null;
+
       function placeAtCluster(clusterInfo) {
+        selectedCluster = clusterInfo;
         // Selection and manual edits use the same raw-to-model conversion.
         clusterInfo.raw_values.forEach((value, i) => {
           document.getElementById(`f${i}`).value = value;
         });
-        update();
+        update(clusterInfo.z_values);
       }
 
       // Each feature carries a `points` table -- (raw, z) pairs for all 143
@@ -547,8 +569,8 @@
         const margin = { top: 16, right: 24, bottom: 46, left: 60 };
         svg.attr("viewBox", `0 0 ${width} ${height}`).selectAll("*").remove();
 
-        const allX = [...atlasPoints.map((p) => p.x), you.x];
-        const allY = [...atlasPoints.map((p) => p.y), you.y];
+        const allX = [...atlasPoints.map((p) => p.x), you.x, ...(selectedCluster ? [selectedCluster.x] : [])];
+        const allY = [...atlasPoints.map((p) => p.y), you.y, ...(selectedCluster ? [selectedCluster.y] : [])];
         const x = d3
           .scaleLinear()
           .domain(d3.extent(allX))
@@ -649,6 +671,17 @@
           .on("pointermove", positionTooltip)
           .on("pointerleave", () => (tip.style.display = "none"));
 
+        if (selectedCluster) {
+          const target = svg.append("g")
+            .attr("transform", `translate(${x(selectedCluster.x)},${y(selectedCluster.y)})`);
+          target.append("circle")
+            .attr("r", 10).attr("fill", "rgba(37, 99, 235, 0.13)")
+            .attr("stroke", "#2563eb").attr("stroke-width", 2.5);
+          target.append("title").text(
+            `${clusterName(selectedCluster.cluster)}: ${titleCase(selectedCluster.name)}'s atlas position`,
+          );
+        }
+
         const legend = d3.select("#legend");
         legend.selectAll("*").remove();
         clusters.forEach((cluster) => {
@@ -676,13 +709,18 @@
             .style("background", color(cluster));
           item
             .append("span")
-            .text(info ? titleCase(info.name) : `Cluster ${cluster}`);
+            .text(clusterName(cluster));
         });
         const youItem = legend.append("span").attr("class", "legend-item");
         youItem.append("span").attr("class", "legend-you");
         youItem
           .append("span")
-          .text("Your placed specialty (follows the sliders live)");
+          .text("Transformer placement (follows the sliders live)");
+        if (selectedCluster) {
+          const targetItem = legend.append("span").attr("class", "legend-item");
+          targetItem.append("span").attr("class", "legend-target");
+          targetItem.append("span").text(`${titleCase(selectedCluster.name)}: representative atlas position`);
+        }
       }
 
       function nearest(point) {
@@ -698,8 +736,8 @@
         return { point: best, distance: Math.sqrt(bestDistance) };
       }
 
-      function update() {
-        const input = currentInput();
+      function update(overrideInput) {
+        const input = overrideInput || currentInput();
         features.forEach((feature, i) => {
           const raw = Number(document.getElementById(`f${i}`).value);
           document.getElementById(`v${i}`).textContent = formatRaw(
@@ -737,5 +775,18 @@
       new ResizeObserver(draw).observe(root);
       update();
     </script>
+    <footer
+      id="visit-counter"
+      style="max-width: 1100px; margin: 24px auto 8px; text-align: center"
+    >
+      <iframe
+        title="Website visitor count"
+        src="https://specialty-umap.goatcounter.com/counter/TOTAL.html"
+        loading="lazy"
+        width="220"
+        height="90"
+        style="border: 0; max-width: 100%"
+      ></iframe>
+    </footer>
   </body>
 </html>

@@ -23,6 +23,7 @@
    :transformations (:identity :asinh :signed-log1p)))
  :search
  (:particles 32
+  :no-validation-split t
   :resampling-threshold 0.65d0
   :minimum-features 7
   :maximum-features 9

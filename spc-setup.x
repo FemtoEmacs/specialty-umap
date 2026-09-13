@@ -1,11 +1,11 @@
 #!/usr/bin/env -S sbcl --script
 ;;;; Complete specialty pipeline. Requires only SBCL and a browser to view HTML.
-;;;; Overrides: SPC_EPOCHS (100), SPC_LR (0.002d0), SPC_FORCE_BASE_MAP (0), SBCL.
+;;;; Overrides: SPC_EPOCHS (500), SPC_LR (0.0007d0), SPC_FORCE_BASE_MAP (0), SBCL.
 (let* ((root (make-pathname :name nil :type nil :defaults *load-truename*))
        (*default-pathname-defaults* root)
        (sbcl (or (sb-ext:posix-getenv "SBCL") (namestring sb-ext:*runtime-pathname*)))
-       (epochs (or (sb-ext:posix-getenv "SPC_EPOCHS") "100"))
-       (rate (or (sb-ext:posix-getenv "SPC_LR") "0.002d0"))
+       (epochs (or (sb-ext:posix-getenv "SPC_EPOCHS") "500"))
+       (rate (or (sb-ext:posix-getenv "SPC_LR") "0.0007d0"))
        (result "output/specialty-awrs-smc-result.sexp")
        (corpus "smc-trainer/corpus/specialty-awrs-corpus.sexp")
        (model "smc-trainer/cl-specialty-awrs-model.sexp")

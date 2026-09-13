@@ -12,19 +12,25 @@ sbcl --script spc-setup.x
 ```
 
 This runs AWRS-SMC with SplitMix64 and explicitly selected multinomial
-resampling, builds and validates the corpus, trains for 100 epochs by default,
+resampling, builds and validates the corpus, trains all 143 specialties for
+500 epochs by default at learning rate 0.0007d0,
 and writes `output/cl-specialty-awrs-preferences.html`. Set `SPC_EPOCHS`,
 `SPC_LR`, or `SPC_FORCE_BASE_MAP` to override the defaults. No Node.js, npm,
 Quicklisp, or external numerical library is required. Viewing needs a browser
 and network access for D3. The build preserves the formatted templates and
 pretty-prints embedded data in Common Lisp.
 
-The published homepage includes the existing GoatCounter. Rebuilding does not
-automatically replace `index.html`. Older RBF application descriptions below
+The generated page includes the existing GoatCounter. Rebuilding does not
+automatically replace `index.html`; copy the generated HTML there after reviewing it.
+Older RBF application descriptions below
 are retained for the legacy pages; they no longer describe the homepage.
 
-Minimum training years match the model's source feature. All slider paths use
-the same conversion, checked by `sbcl --script tests/preferences-conversion-tests.lisp`.
+Minimum training years match the model's source feature. Manual slider edits use
+the raw-to-model conversion, checked by `sbcl --script tests/preferences-conversion-tests.lisp`.
+Selecting a cluster uses its representative specialty's exact saved model input
+to avoid losing information when rounded raw slider values map ambiguously.
+The deployed corpus has no alphabetical specialty holdout; evaluate generalization
+separately rather than treating training fit as held-out accuracy.
 
 
 Start with [How AI Makes a Map of Medical Specialties](outline.md) for the

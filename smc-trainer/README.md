@@ -123,8 +123,10 @@ sbcl --script smc-trainer/train.lisp \
   smc-trainer/specialty-awrs-model.sexp 100 0.002d0
 ```
 
-The deterministic corpus contains 143 examples with eight selected features:
-115 training examples and 28 specialty-held-out validation examples. The
+The current `./spc-setup.x` corpus contains 143 training examples and no
+alphabetically held-out specialties. The command above describes an older
+training run; use `./spc-setup.x` for the deployed model and its 500-epoch,
+0.0007d0 defaults. The
 AWRS-SMC result records the proposal, constraints, rejections, particle
 weights, winning transformations, coordinates, and clustering score.
 

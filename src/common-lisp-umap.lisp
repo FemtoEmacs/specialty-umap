@@ -72,7 +72,7 @@
                           sum (* delta delta))
                     (max 1 (1- rows))))))
           (setf (aref scales column)
-                (if (zerop scale) 1.0d0 scale)))))
+                (if (< scale 1.0d-6) 1.0d0 scale)))))
     (dotimes (row rows result)
       (dotimes (column columns)
         (setf (aref result row column)

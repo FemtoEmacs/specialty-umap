@@ -22,9 +22,11 @@
                  (incf absolute-error (abs difference))
                  (incf coordinates))))
      :split split)
-    (let ((mse (/ squared-error coordinates)))
-      (list :records records :mse mse :rmse (sqrt mse)
-            :mae (/ absolute-error coordinates)))))
+    (if (zerop coordinates)
+        (list :records records :mse nil :rmse nil :mae nil)
+        (let ((mse (/ squared-error coordinates)))
+          (list :records records :mse mse :rmse (sqrt mse)
+                :mae (/ absolute-error coordinates))))))
 
 (defun trainer-map-record-range (source split start end function)
   (let ((index 0))
@@ -63,9 +65,11 @@
         (when (or (= epoch 1) (= epoch epochs) (zerop (mod epoch 10)))
           (let ((train-metrics (trainer-split-metrics model source :train))
                 (validation-metrics (trainer-split-metrics model source :validation)))
-            (format t "Epoch ~3D train RMSE ~,6F validation RMSE ~,6F~%"
+            (format t "Epoch ~3D train RMSE ~,6F validation RMSE ~A~%"
                     epoch (getf train-metrics :rmse)
-                    (getf validation-metrics :rmse)))))
+                    (if (getf validation-metrics :rmse)
+                        (format nil "~,6F" (getf validation-metrics :rmse))
+                        "n/a (no validation split)")))))
       (values model
               (list :epochs epochs :learning-rate learning-rate
                     :optimizer :adam :objective :coordinate-mse
